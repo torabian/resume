@@ -9,6 +9,7 @@ import { ProjectDto } from "@/modules/resume/sdk/ProjectDto";
 
 import {
   withTStringFields,
+  withoutUniqueId,
   withXDateFields,
   TSTRING_RJSF_FIELDS,
   stripNullOptionalValues,
@@ -18,17 +19,19 @@ import {
 // and deliberately plain string, see Resume.emi.yml's own top-of-file
 // "Translatable fields" note.
 const TSTRING_FIELDS = ["role", "summary"];
+// summary is free-text prose (a paragraph, not a label) - see
+// withTStringFields' own doc comment on multilineFields.
+const MULTILINE_FIELDS = ["summary"];
 
 // startDate/endDate are `complex?: XDate` - see Resume.emi.yml's own
 // top-of-file "Dates" note.
 const XDATE_FIELDS = ["startDate", "endDate"];
 
-const BASE_SCHEMA = localizeSchema(
-  ProjectDto.JsonSchema as RJSFSchema,
-  ProjectDto.DefaultTranslations,
+const BASE_SCHEMA = withoutUniqueId(
+  localizeSchema(ProjectDto.JsonSchema as RJSFSchema, ProjectDto.DefaultTranslations),
 );
 const { schema: TSTRING_PATCHED_SCHEMA, uiSchema: PROJECT_UI_SCHEMA } =
-  withTStringFields(BASE_SCHEMA, TSTRING_FIELDS);
+  withTStringFields(BASE_SCHEMA, TSTRING_FIELDS, MULTILINE_FIELDS);
 const { schema: PROJECT_SCHEMA } = withXDateFields(
   TSTRING_PATCHED_SCHEMA,
   XDATE_FIELDS,

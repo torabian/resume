@@ -10,6 +10,7 @@ import { useMemo } from "react";
 
 import {
   withTStringFields,
+  withoutUniqueId,
   TSTRING_RJSF_FIELDS,
   stripNullOptionalValues,
 } from "./routeUtils";
@@ -18,13 +19,15 @@ import {
 // Resume.emi.yml's own top-of-file "Translatable fields" note) - name/
 // website/logoUrl are plain strings, left alone.
 const TSTRING_FIELDS = ["industry", "location", "description"];
+// description is free-text prose (a paragraph, not a label) - see
+// withTStringFields' own doc comment on multilineFields.
+const MULTILINE_FIELDS = ["description"];
 
-const BASE_SCHEMA = localizeSchema(
-  CompanyDto.JsonSchema as RJSFSchema,
-  CompanyDto.DefaultTranslations,
+const BASE_SCHEMA = withoutUniqueId(
+  localizeSchema(CompanyDto.JsonSchema as RJSFSchema, CompanyDto.DefaultTranslations),
 );
 const { schema: COMPANY_SCHEMA, uiSchema: COMPANY_UI_SCHEMA } =
-  withTStringFields(BASE_SCHEMA, TSTRING_FIELDS);
+  withTStringFields(BASE_SCHEMA, TSTRING_FIELDS, MULTILINE_FIELDS);
 const beforeSetValues = stripNullOptionalValues(COMPANY_SCHEMA);
 
 export function useCompanyRoutes() {

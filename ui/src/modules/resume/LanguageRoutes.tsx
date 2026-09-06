@@ -9,6 +9,7 @@ import { LanguageDto } from "@/modules/resume/sdk/LanguageDto";
 
 import {
   withTStringFields,
+  withoutUniqueId,
   TSTRING_RJSF_FIELDS,
   stripNullOptionalValues,
 } from "./routeUtils";
@@ -18,9 +19,8 @@ import {
 // Resume.emi.yml's own top-of-file "Translatable fields" note.
 const TSTRING_FIELDS = ["name"];
 
-const BASE_SCHEMA = localizeSchema(
-  LanguageDto.JsonSchema as RJSFSchema,
-  LanguageDto.DefaultTranslations,
+const BASE_SCHEMA = withoutUniqueId(
+  localizeSchema(LanguageDto.JsonSchema as RJSFSchema, LanguageDto.DefaultTranslations),
 );
 const { schema: LANGUAGE_SCHEMA, uiSchema: LANGUAGE_UI_SCHEMA } =
   withTStringFields(BASE_SCHEMA, TSTRING_FIELDS);

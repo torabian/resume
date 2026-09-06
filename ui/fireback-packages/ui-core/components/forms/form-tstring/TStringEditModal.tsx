@@ -16,11 +16,17 @@ export const TStringEditModal = ({
   resolve,
   locales,
   initialValues,
+  multiline,
+  rows,
 }: {
   close: () => void;
   resolve: (result?: TString) => void;
   locales: string[];
   initialValues: TString;
+  /** Renders each per-locale field as a `<textarea>` instead of a single-line
+   * `<input>` - see FormText.tsx's own `multiline` doc comment. */
+  multiline?: boolean;
+  rows?: number;
 }) => {
   const cs = useS(coreStrings);
   const [values, setValues] = useState<TString>(initialValues ?? {});
@@ -36,6 +42,8 @@ export const TStringEditModal = ({
           }
           label={locale.toUpperCase()}
           autoFocus={index === 0}
+          multiline={multiline}
+          rows={rows}
         />
       ))}
       <div className="row mt-4">

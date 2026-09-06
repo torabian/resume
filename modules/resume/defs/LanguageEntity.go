@@ -12,9 +12,10 @@ import (
 
 // The base class definition for languageEntity
 type LanguageEntity struct {
-	Id          int64                  `gorm:"primaryKey;autoIncrement" json:"-" yaml:"-"`
-	UniqueId    string                 `gorm:"type:varchar(100);default:gen_random_uuid();unique" json:"uniqueId" yaml:"uniqueId"`
-	Name        complexes.TString      `json:"name" yaml:"name"`
+	Id       int64             `gorm:"primaryKey;autoIncrement" json:"-" yaml:"-"`
+	UniqueId string            `gorm:"type:varchar(100);default:gen_random_uuid();unique" json:"uniqueId" yaml:"uniqueId"`
+	Name     complexes.TString `json:"name" yaml:"name"`
+	// CEFR scale (Common European Framework of Reference for Languages).
 	Proficiency emigo.Nullable[string] `json:"proficiency" yaml:"proficiency"`
 }
 
@@ -40,8 +41,9 @@ func GetLanguageEntityCliFlags(prefix string) []emigo.CliFlag {
 			Type: "complex",
 		},
 		{
-			Name: prefix + "proficiency",
-			Type: "enum?",
+			Name:        prefix + "proficiency",
+			Type:        "enum?",
+			Description: "CEFR scale (Common European Framework of Reference for Languages).",
 		},
 	}
 }

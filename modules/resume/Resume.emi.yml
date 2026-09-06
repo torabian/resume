@@ -320,9 +320,11 @@ entities:
         complex: TString
       - name: proficiency
         type: enum?
+        description: CEFR scale (Common European Framework of Reference for Languages).
         of:
-          - k: elementary
-          - k: limitedWorking
-          - k: professionalWorking
-          - k: fullProfessional
-          - k: nativeOrBilingual
+          - k: A1
+          - k: A2
+          - k: B1
+          - k: B2
+          - k: C1
+          - k: C2

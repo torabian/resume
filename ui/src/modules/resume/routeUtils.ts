@@ -1,6 +1,34 @@
 import { type RJSFSchema, type UiSchema } from "@rjsf/utils";
 import { TStringField } from "@fireback/virtual-entity-manager";
 
+/** Strips `uniqueId` out of `schema` entirely - it's a server-assigned
+ * identifier (gorm's AutoMigrate column default `gen_random_uuid()` on
+ * every generated *Entity, e.g. TargetPositionEntity.go's own `UniqueId`
+ * field), never something a create/edit form should ask the user to fill
+ * in or let them change on an existing row. Every *Routes.tsx below applies
+ * this to its own BASE_SCHEMA before any other patch.
+ *
+ * Safe regardless of where in this module's pipeline it runs:
+ * withTStringFields/withXDateFields only ever touch the field names they're
+ * explicitly given (never "uniqueId"), and the archive/single-view casts in
+ * @fireback/virtual-entity-manager's schemaCasting.ts
+ * (columnsFromSchema/fieldsFromSchema) already special-case/exclude
+ * "uniqueId" themselves independently of what's in `schema.properties` - so
+ * this only ever affects the create/edit form actually rendered from
+ * `schema`, not the archive grid's own "Unique Id" column or the
+ * single-view screen.
+ */
+export function withoutUniqueId(schema: RJSFSchema): RJSFSchema {
+  const { uniqueId, ...properties } = (schema.properties as any) ?? {};
+  return {
+    ...schema,
+    properties,
+    required: (schema.required as string[] | undefined)?.filter(
+      (key) => key !== "uniqueId",
+    ),
+  } as RJSFSchema;
+}
+
 // Shared helpers for every *Routes.tsx in this module (and
 // ../materialized/), factoring out the schema-patching boilerplate
 // ../../../nima/ui/src/modules/musicalwork/{Person,Instrument,MusicalWork}
@@ -17,6 +45,13 @@ import { TStringField } from "@fireback/virtual-entity-manager";
  * and the matching uiSchema fragment (`{ [field]: { "ui:field": "tstring" } }`)
  * together, so a call site never has to keep the two lists in sync by hand.
  *
+ * `multilineFields` (a subset of `fields`) additionally sets
+ * `"ui:options": { multiline: true }` on those - TStringField reads that via
+ * rjsf's own getUiOptions and renders a `<textarea>` per locale instead of a
+ * single-line `<input>` (see TStringField.tsx's own doc comment on the
+ * `@fireback/virtual-entity-manager` side). Use it for actual free-text
+ * prose (a summary/description), not short labels (a headline, a location).
+ *
  * Deliberately does NOT touch `resume`/`company` relation (`one`/`one?`)
  * fields - those come through with no `type` either, but for a different
  * reason (they're OneNullable selectors, not TString), and are left
@@ -30,12 +65,14 @@ import { TStringField } from "@fireback/virtual-entity-manager";
 export function withTStringFields(
   schema: RJSFSchema,
   fields: string[],
+  multilineFields: string[] = [],
 ): { schema: RJSFSchema; uiSchema: UiSchema } {
   const properties = { ...(schema.properties as any) };
   const uiSchema: UiSchema = {
     "ui:options": { label: false },
     "ui:description": "",
   };
+  const multilineFieldSet = new Set(multilineFields);
 
   for (const field of fields) {
     if (!properties[field]) continue;
@@ -44,7 +81,9 @@ export function withTStringFields(
       type: "object",
       format: "tstring",
     };
-    uiSchema[field] = { "ui:field": "tstring" };
+    uiSchema[field] = multilineFieldSet.has(field)
+      ? { "ui:field": "tstring", "ui:options": { multiline: true } }
+      : { "ui:field": "tstring" };
   }
 
   return {

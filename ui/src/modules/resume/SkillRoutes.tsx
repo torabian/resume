@@ -9,6 +9,7 @@ import { SkillDto } from "@/modules/resume/sdk/SkillDto";
 
 import {
   withTStringFields,
+  withoutUniqueId,
   TSTRING_RJSF_FIELDS,
   stripNullOptionalValues,
 } from "./routeUtils";
@@ -17,14 +18,17 @@ import {
 // deliberately plain string, see Resume.emi.yml's own top-of-file
 // "Translatable fields" note.
 const TSTRING_FIELDS = ["description"];
+// description is free-text prose (a paragraph, not a label) - see
+// withTStringFields' own doc comment on multilineFields.
+const MULTILINE_FIELDS = ["description"];
 
-const BASE_SCHEMA = localizeSchema(
-  SkillDto.JsonSchema as RJSFSchema,
-  SkillDto.DefaultTranslations,
+const BASE_SCHEMA = withoutUniqueId(
+  localizeSchema(SkillDto.JsonSchema as RJSFSchema, SkillDto.DefaultTranslations),
 );
 const { schema: SKILL_SCHEMA, uiSchema: SKILL_UI_SCHEMA } = withTStringFields(
   BASE_SCHEMA,
   TSTRING_FIELDS,
+  MULTILINE_FIELDS,
 );
 const beforeSetValues = stripNullOptionalValues(SKILL_SCHEMA);
 

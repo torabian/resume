@@ -9,6 +9,7 @@ import { TargetPositionDto } from "@/modules/resume/sdk/TargetPositionDto";
 
 import {
   withTStringFields,
+  withoutUniqueId,
   TSTRING_RJSF_FIELDS,
   stripNullOptionalValues,
 } from "./routeUtils";
@@ -20,9 +21,8 @@ import {
 // Resume.emi.yml's own doc comment on targetPosition.
 const TSTRING_FIELDS = ["name"];
 
-const BASE_SCHEMA = localizeSchema(
-  TargetPositionDto.JsonSchema as RJSFSchema,
-  TargetPositionDto.DefaultTranslations,
+const BASE_SCHEMA = withoutUniqueId(
+  localizeSchema(TargetPositionDto.JsonSchema as RJSFSchema, TargetPositionDto.DefaultTranslations),
 );
 const { schema: TARGET_POSITION_SCHEMA, uiSchema: TARGET_POSITION_UI_SCHEMA } =
   withTStringFields(BASE_SCHEMA, TSTRING_FIELDS);

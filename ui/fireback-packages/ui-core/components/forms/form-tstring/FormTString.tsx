@@ -19,6 +19,13 @@ export interface FormTStringProps extends Omit<BaseFormElementProps, "value"> {
   onChange?: (value: TString) => void;
   placeholder?: string;
   disabled?: boolean;
+  /** Edits each locale through a `<textarea>` instead of a single-line
+   * `<input>` in the modal opened by this field - see FormText.tsx's own
+   * `multiline` doc comment. The closed field itself is unaffected (it's
+   * always the same one-line cycling preview button either way). */
+  multiline?: boolean;
+  /** `<textarea rows>` in the edit modal - only meaningful with `multiline`. */
+  rows?: number;
 }
 
 const CYCLE_MS = 2000;
@@ -34,7 +41,16 @@ const CYCLE_MS = 2000;
 // user can tell there's more than one without opening the modal; with 0 or 1 it just
 // shows the placeholder or that one value, no animation (see FormTString.css).
 export const FormTString = (props: FormTStringProps) => {
-  const { value, onChange, disabled, placeholder, label, ...rest } = props;
+  const {
+    value,
+    onChange,
+    disabled,
+    placeholder,
+    label,
+    multiline,
+    rows,
+    ...rest
+  } = props;
   const cs = useS(coreStrings);
   const { openModal } = useOverlay();
   const locales = useSupportedLocales();
@@ -71,6 +87,8 @@ export const FormTString = (props: FormTStringProps) => {
           {...modalProps}
           locales={locales}
           initialValues={value ?? {}}
+          multiline={multiline}
+          rows={rows}
         />
       ),
       { title: label || cs.actions.edit },

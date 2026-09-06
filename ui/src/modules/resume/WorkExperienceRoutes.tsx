@@ -9,6 +9,7 @@ import { WorkExperienceDto } from "@/modules/resume/sdk/WorkExperienceDto";
 
 import {
   withTStringFields,
+  withoutUniqueId,
   withXDateFields,
   TSTRING_RJSF_FIELDS,
   stripNullOptionalValues,
@@ -25,9 +26,8 @@ const TSTRING_FIELDS = ["company", "jobTitle", "location"];
 // Resume.emi.yml's own top-of-file "Dates" note.
 const XDATE_FIELDS = ["startDate", "endDate"];
 
-const BASE_SCHEMA = localizeSchema(
-  WorkExperienceDto.JsonSchema as RJSFSchema,
-  WorkExperienceDto.DefaultTranslations,
+const BASE_SCHEMA = withoutUniqueId(
+  localizeSchema(WorkExperienceDto.JsonSchema as RJSFSchema, WorkExperienceDto.DefaultTranslations),
 );
 const { schema: TSTRING_PATCHED_SCHEMA, uiSchema: WORK_EXPERIENCE_UI_SCHEMA } =
   withTStringFields(BASE_SCHEMA, TSTRING_FIELDS);

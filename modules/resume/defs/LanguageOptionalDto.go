@@ -9,8 +9,9 @@ import (
 
 // The base class definition for languageOptionalDto
 type LanguageOptionalDto struct {
-	UniqueId    emigo.Nullable[string] `json:"uniqueId" yaml:"uniqueId"`
-	Name        complexes.TString      `json:"name" yaml:"name"`
+	UniqueId emigo.Nullable[string] `json:"uniqueId" yaml:"uniqueId"`
+	Name     complexes.TString      `json:"name" yaml:"name"`
+	// CEFR scale (Common European Framework of Reference for Languages).
 	Proficiency emigo.Nullable[string] `json:"proficiency" yaml:"proficiency"`
 }
 
@@ -32,8 +33,9 @@ func GetLanguageOptionalDtoCliFlags(prefix string) []emigo.CliFlag {
 			Type: "complex",
 		},
 		{
-			Name: prefix + "proficiency",
-			Type: "enum?",
+			Name:        prefix + "proficiency",
+			Type:        "enum?",
+			Description: "CEFR scale (Common European Framework of Reference for Languages).",
 		},
 	}
 }

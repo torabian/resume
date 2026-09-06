@@ -508,19 +508,19 @@ certifications:
 
 languages:
   - name: Persian (Farsi)
-    proficiency: nativeOrBilingual
+    proficiency: C2
 
   - name: English
-    proficiency: fullProfessional
+    proficiency: C1
 
   - name: Polish
-    proficiency: limitedWorking
+    proficiency: B1
 
   - name: German
-    proficiency: elementary
+    proficiency: A1
 
   - name: Turkish
-    proficiency: elementary
+    proficiency: A1
 
   - name: Russian
-    proficiency: elementary
+    proficiency: A1

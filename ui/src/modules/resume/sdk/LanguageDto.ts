@@ -57,19 +57,19 @@ export class LanguageDto {
     return this;
   }
   /**
-   *
+   * CEFR scale (Common European Framework of Reference for Languages).
    * @type {any}
    **/
   #proficiency?: any | null | undefined = undefined;
   /**
-   *
+   * CEFR scale (Common European Framework of Reference for Languages).
    * @returns {any}
    **/
   get proficiency() {
     return this.#proficiency;
   }
   /**
-   *
+   * CEFR scale (Common European Framework of Reference for Languages).
    * @type {any}
    **/
   set proficiency(value: any | null | undefined) {
@@ -94,26 +94,31 @@ export class LanguageDto {
       proficiency: {
         type: "string",
         title: "proficiency_title",
+        description: "proficiency_description",
         oneOf: [
           {
-            const: "elementary",
-            title: "proficiency_enum_elementary",
+            const: "A1",
+            title: "proficiency_enum_a1",
           },
           {
-            const: "limitedWorking",
-            title: "proficiency_enum_limited_working",
+            const: "A2",
+            title: "proficiency_enum_a2",
           },
           {
-            const: "professionalWorking",
-            title: "proficiency_enum_professional_working",
+            const: "B1",
+            title: "proficiency_enum_b1",
           },
           {
-            const: "fullProfessional",
-            title: "proficiency_enum_full_professional",
+            const: "B2",
+            title: "proficiency_enum_b2",
           },
           {
-            const: "nativeOrBilingual",
-            title: "proficiency_enum_native_or_bilingual",
+            const: "C1",
+            title: "proficiency_enum_c1",
+          },
+          {
+            const: "C2",
+            title: "proficiency_enum_c2",
           },
         ],
       },
@@ -125,12 +130,15 @@ export class LanguageDto {
     $description: 'Plain dto mirroring the "language" entity\'s own fields.',
     unique_id_title: "Unique Id",
     name_title: "Name",
-    proficiency_enum_elementary: "elementary",
-    proficiency_enum_limited_working: "limitedWorking",
-    proficiency_enum_professional_working: "professionalWorking",
-    proficiency_enum_full_professional: "fullProfessional",
-    proficiency_enum_native_or_bilingual: "nativeOrBilingual",
+    proficiency_enum_a1: "A1",
+    proficiency_enum_a2: "A2",
+    proficiency_enum_b1: "B1",
+    proficiency_enum_b2: "B2",
+    proficiency_enum_c1: "C1",
+    proficiency_enum_c2: "C2",
     proficiency_title: "Proficiency",
+    proficiency_description:
+      "CEFR scale (Common European Framework of Reference for Languages).",
   } as const;
   constructor(data: unknown = undefined) {
     if (data === null || data === undefined) {
@@ -245,7 +253,7 @@ export type LanguageDtoType = {
    **/
   name: TString;
   /**
-   *
+   * CEFR scale (Common European Framework of Reference for Languages).
    * @type {any}
    **/
   proficiency?: any;

@@ -9,6 +9,7 @@ import { EducationDto } from "@/modules/resume/sdk/EducationDto";
 
 import {
   withTStringFields,
+  withoutUniqueId,
   withXDateFields,
   TSTRING_RJSF_FIELDS,
   stripNullOptionalValues,
@@ -17,17 +18,19 @@ import {
 // degree/fieldOfStudy/location/description are `complex?: TString` - see
 // Resume.emi.yml's own top-of-file "Translatable fields" note.
 const TSTRING_FIELDS = ["degree", "fieldOfStudy", "location", "description"];
+// description is free-text prose (a paragraph, not a label) - see
+// withTStringFields' own doc comment on multilineFields.
+const MULTILINE_FIELDS = ["description"];
 
 // startDate/endDate are `complex?: XDate` - see Resume.emi.yml's own
 // top-of-file "Dates" note.
 const XDATE_FIELDS = ["startDate", "endDate"];
 
-const BASE_SCHEMA = localizeSchema(
-  EducationDto.JsonSchema as RJSFSchema,
-  EducationDto.DefaultTranslations,
+const BASE_SCHEMA = withoutUniqueId(
+  localizeSchema(EducationDto.JsonSchema as RJSFSchema, EducationDto.DefaultTranslations),
 );
 const { schema: TSTRING_PATCHED_SCHEMA, uiSchema: EDUCATION_UI_SCHEMA } =
-  withTStringFields(BASE_SCHEMA, TSTRING_FIELDS);
+  withTStringFields(BASE_SCHEMA, TSTRING_FIELDS, MULTILINE_FIELDS);
 const { schema: EDUCATION_SCHEMA } = withXDateFields(
   TSTRING_PATCHED_SCHEMA,
   XDATE_FIELDS,

@@ -285,13 +285,15 @@ dtos:
     type: complex
     complex: TString
   - name: proficiency
+    description: CEFR scale (Common European Framework of Reference for Languages).
     type: enum?
     of:
-    - k: elementary
-    - k: limitedWorking
-    - k: professionalWorking
-    - k: fullProfessional
-    - k: nativeOrBilingual
+    - k: A1
+    - k: A2
+    - k: B1
+    - k: B2
+    - k: C1
+    - k: C2
 - description: Plain dto mirroring the "company" entity's own fields.
   name: company
   fields:
@@ -510,13 +512,15 @@ dtos:
     type: complex
     complex: TString
   - name: proficiency
+    description: CEFR scale (Common European Framework of Reference for Languages).
     type: enum?
     of:
-    - k: elementary
-    - k: limitedWorking
-    - k: professionalWorking
-    - k: fullProfessional
-    - k: nativeOrBilingual
+    - k: A1
+    - k: A2
+    - k: B1
+    - k: B2
+    - k: C1
+    - k: C2
 entities:
 - name: company
   fields:
@@ -720,13 +724,15 @@ entities:
     type: complex
     complex: TString
   - name: proficiency
+    description: CEFR scale (Common European Framework of Reference for Languages).
     type: enum?
     of:
-    - k: elementary
-    - k: limitedWorking
-    - k: professionalWorking
-    - k: fullProfessional
-    - k: nativeOrBilingual
+    - k: A1
+    - k: A2
+    - k: B1
+    - k: B2
+    - k: C1
+    - k: C2
   description: A spoken/written language proficiency entry, linked to a Resume.
 complexes:
 - name: TString

@@ -1,11 +1,12 @@
 package main
 
-// Sidebar entries for the 9 VirtualEntityManager screens wired in
+// Sidebar entries for the 9 VirtualEntityManager screens plus the
+// hand-written ResumeCreator screen, all wired in
 // ui/src/apps/manage/ApplicationRoutes.tsx (ResumeRoutes.tsx,
 // CompanyRoutes.tsx, TargetPositionRoutes.tsx, WorkExperienceRoutes.tsx,
 // EducationRoutes.tsx, SkillRoutes.tsx, ProjectRoutes.tsx,
-// CertificationRoutes.tsx, LanguageRoutes.tsx). Same shape as
-// ../../nima/modules/musicalwork/
+// CertificationRoutes.tsx, LanguageRoutes.tsx, ResumeCreator.tsx). Same
+// shape as ../../nima/modules/musicalwork/
 // MusicalWorkModule.go's MusicWorkMenu()/*Menu.go files: one parent group
 // entity (no Href, just a label to nest under) plus one child per screen,
 // linked via ParentId.
@@ -66,6 +67,16 @@ func resumeMenus() []*interfacetoolsdefs.AppMenuEntity {
 
 	entries := []*interfacetoolsdefs.AppMenuEntity{
 		group,
+		{
+			UniqueId: "resume-sections-creator",
+			Label: complexes.TStringFrom(map[string]string{
+				"en": "Resume Creator",
+			}),
+			Href:          "/resume-creator",
+			Icon:          "/common/entity-default.svg",
+			ActiveMatcher: "/resume-creator(/|$)",
+			ParentId:      emigo.NullableOf(group.UniqueId),
+		},
 		{
 			UniqueId: "resume-sections-profiles",
 			Label: complexes.TStringFrom(map[string]string{

@@ -1,0 +1,201 @@
+.resume-creator {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  padding: 1rem;
+}
+
+.resume-creator__column {
+  min-width: 0;
+}
+
+/* Library is the browsing pane, not the resume itself - 30% is plenty for
+   a scrolling list of short cards, and leaves the selected-for-resume pane
+   (the thing actually being built) the majority of the width. */
+.resume-creator__column--library {
+  flex: 0 0 30%;
+  max-width: 30%;
+}
+
+.resume-creator__column--selected {
+  flex: 1 1 70%;
+}
+
+/* Independent scroll region for the library list - bounded so a long
+   skill/project list can't stretch the whole screen (and the drop target)
+   out of view. Header/hint above stay put; only this scrolls. */
+.resume-creator__library-scroll {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.resume-creator__column-title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.resume-creator__hint {
+  color: var(--bs-secondary-color, #6c757d);
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.resume-creator__group-title {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--bs-secondary-color, #6c757d);
+  margin: 0.75rem 0 0.375rem;
+}
+
+.resume-creator__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-height: 2.5rem;
+}
+
+.resume-creator__card {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(0, 0, 0, 0.125);
+  border-radius: 0.375rem;
+  background: var(--bs-body-bg, #fff);
+  user-select: none;
+}
+
+.resume-creator__card--dragging {
+  opacity: 0.5;
+}
+
+/* Only the grip is actually draggable on either card (AvailableCard's
+   whole body is a click-to-add button instead - see its own doc comment;
+   SelectedCard's non-grip area has no click behavior of its own but stays
+   consistent with the same handle-only affordance) - the grab cursor
+   belongs here, not on the card as a whole. */
+.resume-creator__card-grip {
+  display: flex;
+  align-items: center;
+  cursor: grab;
+  flex: 0 0 auto;
+}
+
+.resume-creator__card-checkbox {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+/* AvailableCard's own add button - reset to look like plain card content
+   (no button chrome) except for the pointer cursor and hover tint that
+   mark it clickable. */
+.resume-creator__card-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 0.25rem;
+}
+
+.resume-creator__card-button:hover {
+  background: rgba(0, 0, 0, 0.035);
+}
+
+.resume-creator__card-button:hover .resume-creator__card-add-icon {
+  opacity: 1;
+}
+
+.resume-creator__card-icon {
+  flex: 0 0 auto;
+  opacity: 0.5;
+}
+
+.resume-creator__card-add-icon {
+  flex: 0 0 auto;
+  opacity: 0;
+  color: var(--bs-primary, #0d6efd);
+  transition: opacity 0.1s ease;
+}
+
+.resume-creator__card-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resume-creator__card-remove {
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.5;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.resume-creator__card-remove:hover {
+  opacity: 1;
+}
+
+.resume-creator__search {
+  position: relative;
+  margin-bottom: 0.75rem;
+}
+
+.resume-creator__search-icon {
+  position: absolute;
+  top: 50%;
+  left: 0.6rem;
+  transform: translateY(-50%);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.resume-creator__search-input {
+  padding-left: 1.9rem;
+}
+
+.resume-creator__bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+  padding: 0.375rem 0.5rem;
+  background: rgba(13, 110, 253, 0.06);
+  border-radius: 0.375rem;
+}
+
+.resume-creator__dropzone {
+  border: 2px dashed rgba(0, 0, 0, 0.15);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  min-height: 8rem;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.resume-creator__dropzone--over {
+  border-color: var(--bs-primary, #0d6efd);
+  background-color: rgba(13, 110, 253, 0.05);
+}
+
+.resume-creator__empty {
+  color: var(--bs-secondary-color, #6c757d);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 1.5rem 0.5rem;
+}

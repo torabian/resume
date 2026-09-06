@@ -9,6 +9,7 @@ import { CertificationDto } from "@/modules/resume/sdk/CertificationDto";
 
 import {
   withTStringFields,
+  withoutUniqueId,
   TSTRING_RJSF_FIELDS,
   stripNullOptionalValues,
 } from "./routeUtils";
@@ -19,9 +20,8 @@ import {
 // "Translatable fields" note.
 const TSTRING_FIELDS = ["name"];
 
-const BASE_SCHEMA = localizeSchema(
-  CertificationDto.JsonSchema as RJSFSchema,
-  CertificationDto.DefaultTranslations,
+const BASE_SCHEMA = withoutUniqueId(
+  localizeSchema(CertificationDto.JsonSchema as RJSFSchema, CertificationDto.DefaultTranslations),
 );
 const { schema: CERTIFICATION_SCHEMA, uiSchema: CERTIFICATION_UI_SCHEMA } =
   withTStringFields(BASE_SCHEMA, TSTRING_FIELDS);

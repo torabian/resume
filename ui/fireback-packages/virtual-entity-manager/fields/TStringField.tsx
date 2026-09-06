@@ -27,7 +27,18 @@
 // every name/bio edit - which looked like the whole form got wiped/
 // resubmitted, since every other field vanished from Formik's values.
 // `fieldPathId.path` is this field's actual path (e.g. ["name"]).
-import { type FieldProps } from "@rjsf/utils";
+//
+// `multiline`/`rows` (see FormTString.tsx's own doc comment) come from this
+// property's own uiSchema, since a compiled schema has nowhere else to carry
+// them (a `complex: TString` field compiles to a bare `{}` property, same
+// gap `uiSchema: { <field>: { "ui:field": "tstring" } }` itself works
+// around) - opt in with
+// `uiSchema: { <field>: { "ui:field": "tstring", "ui:options": { multiline: true, rows: 5 } } }`.
+// getUiOptions is rjsf's own helper for reading `ui:options`/`ui:<optionName>`
+// off a uiSchema, the same mechanism a Widget's `options` prop is built from
+// - a Field (unlike a Widget) doesn't get that pre-merged, so it's called by
+// hand here.
+import { getUiOptions, type FieldProps } from "@rjsf/utils";
 import { FormTString } from "@fireback/ui-core/components/forms/form-tstring/FormTString";
 import { type TString } from "@fireback/ui-core/types/TString";
 
@@ -37,11 +48,13 @@ export function TStringField({
   disabled,
   required,
   schema,
+  uiSchema,
   fieldPathId,
 }: FieldProps<TString>) {
   const label = schema.title
     ? `${schema.title}${required ? " *" : ""}`
     : undefined;
+  const { multiline, rows } = getUiOptions(uiSchema);
 
   return (
     <FormTString
@@ -49,6 +62,8 @@ export function TStringField({
       hint={schema.description as string | undefined}
       value={formData}
       disabled={disabled}
+      multiline={multiline as boolean | undefined}
+      rows={rows as number | undefined}
       onChange={(value) => onChange(value, fieldPathId.path)}
     />
   );
