@@ -8,14 +8,22 @@ package resume
 // into fireback's migration system (so `resume migration apply`
 // creates/updates their tables) and RouterManifest's CLI commands.
 //
-// Unlike modules/category in ../nima, there's still no Permissions.go/abac
-// permission checks - this is a personal, single-user tool with no
-// workspace/auth model (see ResumeActions.go's own doc comment). HTTP
+// Unlike modules/category in ../nima, no individual action here checks a
+// permission yet - this is a personal, single-user tool with no
+// workspace-scoped auth model (see ResumeActions.go's own doc comment). HTTP
 // routes are wired below (GinWebServerInitHooks), same shape as
 // CategoryModuleSetup: one resumedefs.{Entity}{Verb}ActionGin(g, ...) call
 // per hand-written implementation in ResumeActions.go, so the
 // ui/src/modules/resume/*Routes.tsx VirtualEntityManager screens (which
 // hit these over HTTP, not the CLI) have something to talk to.
+//
+// The module *does* now register a capability, though - resumedefs.ResumePermission
+// ("resume.*", generated from Resume.emi.yml's own `permissions:` block) is
+// provided below via ProvidePermissionHandler, so it shows up in abac's
+// capability tree for a role to be granted, and cmd/resumeMenus.go uses it
+// as the resume sidebar group's own CapabilityId. That's registration, not
+// enforcement - see the doc comment on Resume.emi.yml's `permissions:`
+// block for why no ActionRequires check was added to match.
 import (
 	"context"
 	"fmt"
@@ -23,6 +31,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/torabian/fireback/modules/fireback"
 	"github.com/torabian/fireback/modules/fireback/application"
+	"github.com/torabian/fireback/modules/fireback/complexes"
 	resumedefs "github.com/torabian/resume/modules/resume/defs"
 	"github.com/urfave/cli/v3"
 )
@@ -59,6 +68,7 @@ func ResumeModuleSetup(cfg *ResumeModuleConfig) *application.ModuleProvider {
 				resumedefs.ResumeBrowseActionGin(g, ResumeBrowseAction)
 				resumedefs.ResumeAwareDeletePreviewActionGin(g, ResumeAwareDeletePreviewAction)
 				resumedefs.ResumeAwareDeleteActionGin(g, ResumeAwareDeleteAction)
+				resumedefs.ResumeToLatexActionGin(g, ResumeToLatexAction)
 
 				resumedefs.CompanyCreateActionGin(g, CompanyCreateAction)
 				resumedefs.CompanyUpdateActionGin(g, CompanyUpdateAction)
@@ -148,6 +158,24 @@ func ResumeModuleSetup(cfg *ResumeModuleConfig) *application.ModuleProvider {
 	}
 
 	module.CliHandlers = append(module.CliHandlers, RouterCliManifest()...)
+
+	// See this file's own doc comment - registers resumedefs.ResumePermission
+	// ("resume.*") with the module, the same ModuleProvider.PermissionsProvider
+	// slot CategoryModuleSetup's own ProvidePermissionHandler call fills in
+	// ../nima/modules/category/CategoryModule.go. Cast by hand (rather than a
+	// PermissionsFrom helper - only one permission exists here so a whole slice
+	// -mapping helper isn't worth it yet) the same way
+	// ../nima/modules/entitlement/CatalogImplementation.go's own
+	// permissionInfoFromEmigo does: Key -> CompleteKey, Title/Description (both
+	// already `map[string]string`) -> Name/Description, Name -> GoVariable.
+	module.ProvidePermissionHandler([]application.PermissionInfo{
+		{
+			CompleteKey: resumedefs.ResumePermission.Key,
+			Name:        complexes.TString(resumedefs.ResumePermission.Title),
+			Description: complexes.TString(resumedefs.ResumePermission.Description),
+			GoVariable:  resumedefs.ResumePermission.Name,
+		},
+	})
 
 	return module
 }

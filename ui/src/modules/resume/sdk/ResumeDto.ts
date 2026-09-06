@@ -1,4 +1,4 @@
-import { TString } from "@fireback/complexes";
+import { MJson, TString } from "@fireback/complexes";
 import { type PartialDeep } from "@fireback/js-remote-ctx/common/fetchx";
 /**
  * The base class definition for resumeDto
@@ -363,6 +363,42 @@ export class ResumeDto {
     this.isPrimary = value;
     return this;
   }
+  /**
+   * Skills/projects picked for this resume via the Resume Creator screen (ui/src/modules/resume/ResumeCreator.tsx) - a JSON array of {kind, uniqueId, label} objects, in the order chosen there. Not modeled as real one/collection relations to Skill/Project (those entities dropped their own `resume: one` link - see this file's own top-of-file note on why): this is a lightweight snapshot the picker UI reads/writes wholesale, not a queryable relation.
+   * @type {MJson}
+   **/
+  #content?: MJson | null | undefined = undefined;
+  /**
+   * Skills/projects picked for this resume via the Resume Creator screen (ui/src/modules/resume/ResumeCreator.tsx) - a JSON array of {kind, uniqueId, label} objects, in the order chosen there. Not modeled as real one/collection relations to Skill/Project (those entities dropped their own `resume: one` link - see this file's own top-of-file note on why): this is a lightweight snapshot the picker UI reads/writes wholesale, not a queryable relation.
+   * @returns {MJson}
+   **/
+  get content() {
+    return this.#content;
+  }
+  /**
+   * Skills/projects picked for this resume via the Resume Creator screen (ui/src/modules/resume/ResumeCreator.tsx) - a JSON array of {kind, uniqueId, label} objects, in the order chosen there. Not modeled as real one/collection relations to Skill/Project (those entities dropped their own `resume: one` link - see this file's own top-of-file note on why): this is a lightweight snapshot the picker UI reads/writes wholesale, not a queryable relation.
+   * @type {MJson}
+   **/
+  set content(value: MJson | null | undefined) {
+    // For a nullable complex field, an explicit undefined/null is a
+    // deliberate value and has to pass through untouched - same as every
+    // other nullable field's setter (array?, one?, object?, ...) above.
+    // Anything else always becomes a real instance, exactly like a
+    // non-nullable "complex" field does.
+    if (value === null || value === undefined) {
+      this.#content = value === null ? null : undefined;
+      return;
+    }
+    if (value instanceof MJson) {
+      this.#content = value;
+    } else {
+      this.#content = new MJson(value);
+    }
+  }
+  setContent(value: MJson | null | undefined) {
+    this.content = value;
+    return this;
+  }
   static JsonSchema = {
     type: "object",
     title: "$title",
@@ -421,6 +457,10 @@ export class ResumeDto {
         title: "is_primary_title",
         description: "is_primary_description",
       },
+      content: {
+        title: "content_title",
+        description: "content_description",
+      },
     },
     required: ["fullName"],
   };
@@ -447,6 +487,9 @@ export class ResumeDto {
     is_primary_title: "Is Primary",
     is_primary_description:
       "Marks the default resume when a user keeps several variants.",
+    content_title: "Content",
+    content_description:
+      "Skills/projects picked for this resume via the Resume Creator screen (ui/src/modules/resume/ResumeCreator.tsx) - a JSON array of {kind, uniqueId, label} objects, in the order chosen there. Not modeled as real one/collection relations to Skill/Project (those entities dropped their own `resume: one` link - see this file's own top-of-file note on why): this is a lightweight snapshot the picker UI reads/writes wholesale, not a queryable relation.",
   } as const;
   constructor(data: unknown = undefined) {
     if (data === null || data === undefined) {
@@ -523,6 +566,9 @@ export class ResumeDto {
     if (d.isPrimary !== undefined) {
       this.isPrimary = d.isPrimary;
     }
+    if (d.content !== undefined) {
+      this.content = d.content;
+    }
   }
   /**
    *	Special toJSON override, since the field are private,
@@ -543,6 +589,7 @@ export class ResumeDto {
       photoUrl: this.#photoUrl,
       language: this.#language,
       isPrimary: this.#isPrimary,
+      content: this.#content,
     };
   }
   toString() {
@@ -563,6 +610,7 @@ export class ResumeDto {
       photoUrl: "photoUrl",
       language: "language",
       isPrimary: "isPrimary",
+      content: "content",
     };
   }
   /**
@@ -665,6 +713,11 @@ export type ResumeDtoType = {
    * @type {boolean}
    **/
   isPrimary?: boolean;
+  /**
+   * Skills/projects picked for this resume via the Resume Creator screen (ui/src/modules/resume/ResumeCreator.tsx) - a JSON array of {kind, uniqueId, label} objects, in the order chosen there. Not modeled as real one/collection relations to Skill/Project (those entities dropped their own `resume: one` link - see this file's own top-of-file note on why): this is a lightweight snapshot the picker UI reads/writes wholesale, not a queryable relation.
+   * @type {MJson}
+   **/
+  content?: MJson;
 };
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace ResumeDtoType {}

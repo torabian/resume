@@ -1,4 +1,21 @@
 name: resume
+permissions:
+  # Compiles to resumedefs.ResumePermission (emigo.Permission{Key: "resume.*", ...}
+  # - see emigo/Permission.go's own doc comment: a node whose key is left for the
+  # compiler to derive gets a trailing "*", covering itself and everything below
+  # it). Registered with the module in ResumeModuleSetup (see ResumeModule.go's
+  # own ProvidePermissionHandler call) so it shows up in abac's capability tree
+  # for roles to be granted, and used as the resume sidebar group's own
+  # CapabilityId (see ../../cmd/resumeMenus.go) - same pattern
+  # ../../../nima/modules/musicalwork/MusicalWorkModule.go uses "musicalwork.*"
+  # for. No individual action in this module checks it yet (see ResumeModule.go's
+  # own doc comment on why: a personal, single-user tool, not workspace-scoped) -
+  # this is the capability existing and being wired in, not enforcement.
+  - name: resume
+    title:
+      en: Resume
+    description:
+      en: Manage every resume section (profiles, companies, work experience, education, skills, projects, certifications, languages, target positions).
 description: |
   Resume module - stores a resume structurally in the database so it can be
   edited via CRUD and later rendered into PDF/LaTeX (or any other format).
@@ -155,6 +172,17 @@ entities:
       - name: isPrimary
         type: bool?
         description: Marks the default resume when a user keeps several variants.
+      - name: content
+        type: complex?
+        complex: MJson
+        description: >-
+          Skills/projects picked for this resume via the Resume Creator
+          screen (ui/src/modules/resume/ResumeCreator.tsx) - a JSON array of
+          {kind, uniqueId, label} objects, in the order chosen there. Not
+          modeled as real one/collection relations to Skill/Project (those
+          entities dropped their own `resume: one` link - see this file's
+          own top-of-file note on why): this is a lightweight snapshot the
+          picker UI reads/writes wholesale, not a queryable relation.
 
   - name: workExperience
     description: A single employment period, linked to a Company and a Resume.
@@ -328,3 +356,32 @@ entities:
           - k: B2
           - k: C1
           - k: C2
+
+dtos:
+  - name: resumeLatex
+    description: >-
+      Plain LaTeX (.tex) source generated for one resume - the profile
+      fields (fullName/headline/summary/contact info) plus the skills and
+      projects picked for it via the Resume Creator screen (see
+      `resume.content` and ui/src/modules/resume/ResumeCreator.tsx). First
+      pass only: raw source text, not a compiled PDF - see
+      ResumeToLatexImplementation.go's own doc comment for what a later pass
+      would still need (a real LaTeX toolchain, a proper template/theme,
+      work experience/education/certifications/languages - none of which
+      `content` references today).
+    fields:
+      - name: source
+        type: string
+        description: The complete .tex document, ready to hand to a LaTeX compiler as-is.
+
+actions:
+  - name: resumeToLatex
+    cliShort: to-latex
+    description: >-
+      Renders one resume into LaTeX source - see ResumeLatexDto's own doc
+      comment for exactly what's covered in this first pass.
+    method: get
+    url: /profile/:uniqueId/latex
+    out:
+      dto: ResumeLatexDto
+      envelope: GResponse

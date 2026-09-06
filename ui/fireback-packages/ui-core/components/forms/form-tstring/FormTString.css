@@ -26,6 +26,30 @@
   text-overflow: ellipsis;
 }
 
+/* Closed preview for a multiline TStringField (see FormTString.tsx's own
+   `multiline` doc comment) - a wrapped, several-line block instead of the
+   default single-line ellipsis, so a paragraph-shaped value (a summary, a
+   description) actually reads as one on the closed field, not a single
+   truncated line. Line-clamped rather than left to grow unbounded, so a
+   very long value doesn't blow out the surrounding form's layout - open the
+   modal for the rest. */
+.form-tstring--multiline {
+  height: auto;
+  min-height: 4.5rem;
+  align-items: flex-start;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.form-tstring__value--multiline {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  white-space: pre-wrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Only applied when there's more than one non-empty language to show - a single
    value is just displayed, nothing to crossfade between. Duration/interval are kept
    in lockstep with FormTString.tsx's setInterval(..., 2000): the element remounts
@@ -60,4 +84,54 @@
   100% {
     opacity: 0;
   }
+}
+
+/* `mode: "inline"` (see FormTString.tsx's own doc comment) - a tab per
+   locale sitting right above the one always-visible FormText, instead of a
+   button that opens TStringEditModal. */
+.form-tstring-inline__tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.375rem;
+}
+
+.form-tstring-inline__tab {
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: transparent;
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.4;
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.form-tstring-inline__tab:disabled {
+  cursor: not-allowed;
+}
+
+/* A tab whose locale already has non-empty text - a plain dot, not a full
+   color change, so it reads as "has content" without competing with
+   --active for attention. */
+.form-tstring-inline__tab--filled {
+  opacity: 0.85;
+}
+
+.form-tstring-inline__tab--filled::after {
+  content: "";
+  display: inline-block;
+  width: 0.3rem;
+  height: 0.3rem;
+  margin-left: 0.3rem;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.6;
+}
+
+.form-tstring-inline__tab--active {
+  opacity: 1;
+  border-color: var(--bs-primary, #0d6efd);
+  color: var(--bs-primary, #0d6efd);
+  background: rgba(13, 110, 253, 0.08);
 }

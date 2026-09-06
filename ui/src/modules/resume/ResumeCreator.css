@@ -199,3 +199,12 @@
   text-align: center;
   padding: 1.5rem 0.5rem;
 }
+
+/* ResumeContentField.tsx's modal - just the ResumeCreatorPicker (its own
+   .resume-creator rules above apply unchanged) plus a save/cancel row. */
+.resume-content-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0 1rem 1rem;
+}

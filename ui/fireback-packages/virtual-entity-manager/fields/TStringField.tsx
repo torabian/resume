@@ -28,12 +28,12 @@
 // resubmitted, since every other field vanished from Formik's values.
 // `fieldPathId.path` is this field's actual path (e.g. ["name"]).
 //
-// `multiline`/`rows` (see FormTString.tsx's own doc comment) come from this
-// property's own uiSchema, since a compiled schema has nowhere else to carry
-// them (a `complex: TString` field compiles to a bare `{}` property, same
-// gap `uiSchema: { <field>: { "ui:field": "tstring" } }` itself works
-// around) - opt in with
-// `uiSchema: { <field>: { "ui:field": "tstring", "ui:options": { multiline: true, rows: 5 } } }`.
+// `multiline`/`rows`/`mode` (see FormTString.tsx's own doc comments) come
+// from this property's own uiSchema, since a compiled schema has nowhere
+// else to carry them (a `complex: TString` field compiles to a bare `{}`
+// property, same gap `uiSchema: { <field>: { "ui:field": "tstring" } }`
+// itself works around) - opt in with
+// `uiSchema: { <field>: { "ui:field": "tstring", "ui:options": { multiline: true, rows: 5, mode: "inline" } } }`.
 // getUiOptions is rjsf's own helper for reading `ui:options`/`ui:<optionName>`
 // off a uiSchema, the same mechanism a Widget's `options` prop is built from
 // - a Field (unlike a Widget) doesn't get that pre-merged, so it's called by
@@ -54,7 +54,7 @@ export function TStringField({
   const label = schema.title
     ? `${schema.title}${required ? " *" : ""}`
     : undefined;
-  const { multiline, rows } = getUiOptions(uiSchema);
+  const { multiline, rows, mode } = getUiOptions(uiSchema);
 
   return (
     <FormTString
@@ -64,6 +64,7 @@ export function TStringField({
       disabled={disabled}
       multiline={multiline as boolean | undefined}
       rows={rows as number | undefined}
+      mode={mode as "modal" | "inline" | undefined}
       onChange={(value) => onChange(value, fieldPathId.path)}
     />
   );

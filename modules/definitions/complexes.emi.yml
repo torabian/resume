@@ -18,6 +18,13 @@ complexes:
     location: '@fireback/complexes'
     name: XDate
   - compiler: go
+    location: github.com/torabian/fireback/modules/fireback/complexes
+    name: MJson
+    namespace: complexes
+  - compiler: ts
+    location: '@fireback/complexes'
+    name: MJson
+  - compiler: go
     name: ComplexFile
     location: github.com/torabian/fireback/modules/storage
     namespace: storage

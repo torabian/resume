@@ -52,7 +52,7 @@ import { useProjectBrowseActionQuery } from "@/modules/resume/sdk/ProjectBrowseA
 // proven out elsewhere in this app.
 type ItemKind = "skill" | "project";
 
-interface PickerItem {
+export interface PickerItem {
   kind: ItemKind;
   uniqueId: string;
   label: string;
@@ -265,9 +265,23 @@ function DropZone({
   );
 }
 
-export function ResumeCreator() {
-  usePageTitle("Resume Creator");
-
+/**
+ * The actual picker UI - two panes, drag/click/batch-add, search - fully
+ * controlled: `value`/`onChange` own the picked list, the same
+ * `useState`-backed contract every rjsf field already uses (see
+ * TStringField.tsx's own formData/onChange). Split out from `ResumeCreator`
+ * (the standalone page below, which owns its own uncontrolled state)
+ * specifically so ResumeContentField.tsx can embed this same picker inside
+ * a modal for the `resume.content` field, without pulling in
+ * usePageTitle/routing or duplicating any of the drag-and-drop logic.
+ */
+export function ResumeCreatorPicker({
+  value,
+  onChange,
+}: {
+  value: PickerItem[];
+  onChange: (items: PickerItem[]) => void;
+}) {
   // No qs -> no LIMIT server-side (see this file's own header comment) -
   // every skill/project the signed-in user has ever recorded comes back in
   // one page, which is exactly what a picker needs (unlike ArchiveScreen's
@@ -294,11 +308,17 @@ export function ResumeCreator() {
     [projectsQuery.data],
   );
 
-  // The one piece of state this whole screen exists to build - the
-  // skills/projects (and their order) picked for this resume. Nothing here
-  // is submitted anywhere yet; a real "save this as a resume" action would
-  // read this array.
-  const [selected, setSelected] = useState<PickerItem[]>([]);
+  // `selected`/`setSelected` below is every bit of this component's own
+  // logic, unchanged from before this was split out - it's just backed by
+  // the controlled `value`/`onChange` pair now instead of its own
+  // `useState`. setSelected keeps supporting the functional-updater form
+  // (`setSelected((prev) => ...)`) every call site already uses.
+  const selected = value;
+  function setSelected(
+    updater: PickerItem[] | ((prev: PickerItem[]) => PickerItem[]),
+  ) {
+    onChange(typeof updater === "function" ? updater(selected) : updater);
+  }
   const selectedKeys = useMemo(
     () => new Set(selected.map(itemKey)),
     [selected],
@@ -572,6 +592,18 @@ export function ResumeCreator() {
       </DragOverlay>
     </DndContext>
   );
+}
+
+/** The standalone "/resume-creator" screen (see cmd/resumeMenus.go's own
+ * sidebar entry and ApplicationRoutes.tsx's route) - just ResumeCreatorPicker
+ * with its own page title and locally-owned, uncontrolled state. Doesn't
+ * persist anywhere on its own; ResumeContentField.tsx's modal is the other
+ * (controlled) consumer of the same picker, wired to the `resume.content`
+ * form field instead. */
+export function ResumeCreator() {
+  usePageTitle("Resume Creator");
+  const [value, setValue] = useState<PickerItem[]>([]);
+  return <ResumeCreatorPicker value={value} onChange={setValue} />;
 }
 
 export default ResumeCreator;

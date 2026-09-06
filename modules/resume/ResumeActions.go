@@ -80,6 +80,7 @@ func resumeDtoFromEntity(e *resumedefs.ResumeEntity) resumedefs.ResumeDto {
 		PhotoUrl:  e.PhotoUrl,
 		Language:  e.Language,
 		IsPrimary: e.IsPrimary,
+		Content:   e.Content,
 	}
 }
 
@@ -212,6 +213,7 @@ func ResumeCreateAction(c resumedefs.ResumeCreateActionRequest) (*resumedefs.Res
 		PhotoUrl:  c.Body.PhotoUrl,
 		Language:  c.Body.Language,
 		IsPrimary: c.Body.IsPrimary,
+		Content:   c.Body.Content,
 	})
 	if err != nil {
 		return nil, err

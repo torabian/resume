@@ -58,6 +58,18 @@ description: |
   are left plain `string(?)` for now - not touched by this pass.
 name: resume
 dtos:
+- description: 'Plain LaTeX (.tex) source generated for one resume - the profile fields
+    (fullName/headline/summary/contact info) plus the skills and projects picked for
+    it via the Resume Creator screen (see `resume.content` and ui/src/modules/resume/ResumeCreator.tsx).
+    First pass only: raw source text, not a compiled PDF - see ResumeToLatexImplementation.go''s
+    own doc comment for what a later pass would still need (a real LaTeX toolchain,
+    a proper template/theme, work experience/education/certifications/languages -
+    none of which `content` references today).'
+  name: resumeLatex
+  fields:
+  - name: source
+    description: The complete .tex document, ready to hand to a LaTeX compiler as-is.
+    type: string
 - description: Every field of the "company" entity, but optional - used both as Update's
     partial input and as Browse's response item shape.
   name: companyOptional
@@ -125,6 +137,15 @@ dtos:
   - name: isPrimary
     description: Marks the default resume when a user keeps several variants.
     type: bool?
+  - name: content
+    description: 'Skills/projects picked for this resume via the Resume Creator screen
+      (ui/src/modules/resume/ResumeCreator.tsx) - a JSON array of {kind, uniqueId,
+      label} objects, in the order chosen there. Not modeled as real one/collection
+      relations to Skill/Project (those entities dropped their own `resume: one` link
+      - see this file''s own top-of-file note on why): this is a lightweight snapshot
+      the picker UI reads/writes wholesale, not a queryable relation.'
+    type: complex?
+    complex: MJson
 - description: Every field of the "workExperience" entity, but optional - used both
     as Update's partial input and as Browse's response item shape.
   name: workExperienceOptional
@@ -358,6 +379,15 @@ dtos:
   - name: isPrimary
     description: Marks the default resume when a user keeps several variants.
     type: bool?
+  - name: content
+    description: 'Skills/projects picked for this resume via the Resume Creator screen
+      (ui/src/modules/resume/ResumeCreator.tsx) - a JSON array of {kind, uniqueId,
+      label} objects, in the order chosen there. Not modeled as real one/collection
+      relations to Skill/Project (those entities dropped their own `resume: one` link
+      - see this file''s own top-of-file note on why): this is a lightweight snapshot
+      the picker UI reads/writes wholesale, not a queryable relation.'
+    type: complex?
+    complex: MJson
 - description: Plain dto mirroring the "workExperience" entity's own fields.
   name: workExperience
   fields:
@@ -581,6 +611,15 @@ entities:
   - name: isPrimary
     description: Marks the default resume when a user keeps several variants.
     type: bool?
+  - name: content
+    description: 'Skills/projects picked for this resume via the Resume Creator screen
+      (ui/src/modules/resume/ResumeCreator.tsx) - a JSON array of {kind, uniqueId,
+      label} objects, in the order chosen there. Not modeled as real one/collection
+      relations to Skill/Project (those entities dropped their own `resume: one` link
+      - see this file''s own top-of-file note on why): this is a lightweight snapshot
+      the picker UI reads/writes wholesale, not a queryable relation.'
+    type: complex?
+    complex: MJson
   description: |
     Root aggregate for a single resume/CV. Sections (work experience, education, skills, projects, certifications, languages) are separate entities that reference this one via a `resume: one` field.
 - name: workExperience
@@ -749,6 +788,13 @@ complexes:
 - name: XDate
   location: '@fireback/complexes'
   compiler: ts
+- name: MJson
+  namespace: complexes
+  location: github.com/torabian/fireback/modules/fireback/complexes
+  compiler: go
+- name: MJson
+  location: '@fireback/complexes'
+  compiler: ts
 - name: ComplexFile
   namespace: storage
   location: github.com/torabian/fireback/modules/storage
@@ -757,6 +803,15 @@ complexes:
   location: '@fireback/resumable-uploader'
   compiler: ts
 actions:
+- name: resumeToLatex
+  cliShort: to-latex
+  url: /profile/:uniqueId/latex
+  method: get
+  description: Renders one resume into LaTeX source - see ResumeLatexDto's own doc
+    comment for exactly what's covered in this first pass.
+  out:
+    envelope: GResponse
+    dto: ResumeLatexDto
 - name: companyCreate
   cliName: create
   cliShort: c
@@ -1533,3 +1588,12 @@ actions:
     - name: uniqueIds
       type: slice
       primitive: string
+permissions:
+- name: resume
+  title:
+    en: Resume
+  description:
+    en: Manage every resume section (profiles, companies, work experience, education,
+      skills, projects, certifications, languages, target positions).
+  key: resume
+  fullKey: resume

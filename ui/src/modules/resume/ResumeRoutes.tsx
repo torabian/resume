@@ -6,6 +6,7 @@ import { useResumeCreateAction } from "@/modules/resume/sdk/ResumeCreateAction";
 import { useResumeUpdateAction } from "@/modules/resume/sdk/ResumeUpdateAction";
 import { useResumeAwareDeleteAction } from "@/modules/resume/sdk/ResumeAwareDeleteAction";
 import { ResumeDto } from "@/modules/resume/sdk/ResumeDto";
+import { ResumeContentField } from "./ResumeContentField";
 
 import {
   withTStringFields,
@@ -26,8 +27,21 @@ const MULTILINE_FIELDS = ["summary"];
 const BASE_SCHEMA = withoutUniqueId(
   localizeSchema(ResumeDto.JsonSchema as RJSFSchema, ResumeDto.DefaultTranslations),
 );
-const { schema: RESUME_SCHEMA, uiSchema: RESUME_UI_SCHEMA } =
+const { schema: RESUME_SCHEMA, uiSchema: TSTRING_UI_SCHEMA } =
   withTStringFields(BASE_SCHEMA, TSTRING_FIELDS, MULTILINE_FIELDS);
+// `content` (`complex?: MJson` - see Resume.emi.yml) opts into
+// ResumeContentField.tsx's own picker-in-a-modal instead of rjsf's default
+// raw-JSON rendering for an untyped property - same "ui:field" mechanism
+// TString fields above use, just a different custom field/registration
+// (see RESUME_FORM_FIELDS below).
+const RESUME_UI_SCHEMA = {
+  ...TSTRING_UI_SCHEMA,
+  content: { "ui:field": "resumeContent" },
+};
+const RESUME_FORM_FIELDS = {
+  ...TSTRING_RJSF_FIELDS,
+  resumeContent: ResumeContentField,
+};
 const beforeSetValues = stripNullOptionalValues(RESUME_SCHEMA);
 
 // slug "profile" (not "resume") - matches ../../../cmd's own CLI naming
@@ -42,7 +56,7 @@ export function useResumeRoutes() {
     editTitle: "Edit resume",
     schema: RESUME_SCHEMA,
     uiSchema: RESUME_UI_SCHEMA,
-    rjsfFields: TSTRING_RJSF_FIELDS,
+    rjsfFields: RESUME_FORM_FIELDS,
     beforeSetValues,
     getQuery: useResumeGetActionQuery,
     browseQuery: useResumeBrowseActionQuery,

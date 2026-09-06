@@ -129,7 +129,15 @@ func languageCliCommands() []*cli.Command {
 // ResumeModuleSetup's CliHandlers.
 func RouterCliManifest() []*cli.Command {
 	return []*cli.Command{
-		{Name: "profile", Usage: "Manage the root Resume record (create/get/browse/update/delete)", Commands: resumeCliCommands()},
+		{
+			Name:  "profile",
+			Usage: "Manage the root Resume record (create/get/browse/update/delete)",
+			Commands: append(resumeCliCommands(), func() *cli.Command {
+				cmd := resumedefs.ResumeToLatexActionCliHandler(ResumeToLatexAction)
+				cmd.Name = "to-latex"
+				return cmd
+			}()),
+		},
 		{Name: "company", Usage: "Manage employer records (create/get/browse/update/delete)", Commands: companyCliCommands()},
 		{Name: "target-position", Usage: "Manage target position records (create/get/browse/update/delete)", Commands: targetPositionCliCommands()},
 		{Name: "work-experience", Usage: "Manage work experience entries (create/get/browse/update/delete)", Commands: workExperienceCliCommands()},

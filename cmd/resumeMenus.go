@@ -53,6 +53,7 @@ import (
 	"github.com/torabian/emi/emigo"
 	interfacetoolsdefs "github.com/torabian/fireback/modules/abac/interfacetools/defs"
 	"github.com/torabian/fireback/modules/fireback/complexes"
+	resumedefs "github.com/torabian/resume/modules/resume/defs"
 )
 
 // resumeMenus returns the "Resume" sidebar group and its 8 entity screens.
@@ -63,6 +64,14 @@ func resumeMenus() []*interfacetoolsdefs.AppMenuEntity {
 			"en": "Resume",
 		}),
 		Icon: "/common/product.svg",
+		// Gates the whole group behind resumedefs.ResumePermission ("resume.*" -
+		// see ResumeModule.go's own ProvidePermissionHandler call) - same pattern
+		// ../../nima/modules/musicalwork/MusicalWorkModule.go uses "musicalwork.*"
+		// for. Root (this app's only real user today) always holds the full "*"
+		// wildcard (see resolve.MeetsAccessLevel's own doc comment), so this is
+		// inert for the current single-user setup - it only starts mattering once
+		// a non-root role exists that isn't granted resume.*.
+		CapabilityId: emigo.NullableOf(resumedefs.ResumePermission.Key),
 	}
 
 	entries := []*interfacetoolsdefs.AppMenuEntity{

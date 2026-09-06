@@ -149,14 +149,15 @@ function TStringWidget(props: WidgetProps) {
       disabled={disabled || readonly}
       hint={schema.description}
       errorMessage={errorMessage(rawErrors)}
-      // See FormTString.tsx's own doc comment - opt a field into a
-      // multi-line editor with
-      // `uiSchema: { <field>: { "ui:widget": "tstring", "ui:options": { multiline: true, rows: 5 } } }`.
+      // See FormTString.tsx's own doc comments - opt a field into a
+      // multi-line and/or inline (no-modal) editor with
+      // `uiSchema: { <field>: { "ui:widget": "tstring", "ui:options": { multiline: true, rows: 5, mode: "inline" } } }`.
       // Unlike TStringField.tsx (a rjsf Field, not a Widget), `options` here
       // is already the merged `ui:options`/`ui:<optionName>` rjsf hands every
       // widget - no getUiOptions call needed.
       multiline={options.multiline as boolean | undefined}
       rows={options.rows as number | undefined}
+      mode={options.mode as "modal" | "inline" | undefined}
       onChange={(next) => onChange(next)}
     />
   );

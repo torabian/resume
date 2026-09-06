@@ -26,6 +26,8 @@ type ResumeOptionalDto struct {
 	Language emigo.Nullable[string] `json:"language" yaml:"language"`
 	// Marks the default resume when a user keeps several variants.
 	IsPrimary emigo.Nullable[bool] `json:"isPrimary" yaml:"isPrimary"`
+	// Skills/projects picked for this resume via the Resume Creator screen (ui/src/modules/resume/ResumeCreator.tsx) - a JSON array of {kind, uniqueId, label} objects, in the order chosen there. Not modeled as real one/collection relations to Skill/Project (those entities dropped their own `resume: one` link - see this file's own top-of-file note on why): this is a lightweight snapshot the picker UI reads/writes wholesale, not a queryable relation.
+	Content complexes.MJson `json:"content" yaml:"content"`
 }
 
 func (x *ResumeOptionalDto) Json() string {
@@ -93,6 +95,11 @@ func GetResumeOptionalDtoCliFlags(prefix string) []emigo.CliFlag {
 			Type:        "bool?",
 			Description: "Marks the default resume when a user keeps several variants.",
 		},
+		{
+			Name:        prefix + "content",
+			Type:        "complex",
+			Description: "Skills/projects picked for this resume via the Resume Creator screen (ui/src/modules/resume/ResumeCreator.tsx) - a JSON array of {kind, uniqueId, label} objects, in the order chosen there. Not modeled as real one/collection relations to Skill/Project (those entities dropped their own `resume: one` link - see this file's own top-of-file note on why): this is a lightweight snapshot the picker UI reads/writes wholesale, not a queryable relation.",
+		},
 	}
 }
 func CastResumeOptionalDtoFromCli(c emigo.CliCastable) ResumeOptionalDto {
@@ -141,6 +148,11 @@ func CastResumeOptionalDtoFromCli(c emigo.CliCastable) ResumeOptionalDto {
 	}
 	if c.IsSet("is-primary") {
 		emigo.ParseNullable(c.String("is-primary"), &data.IsPrimary)
+	}
+	if c.IsSet("content") {
+		if u, ok := any(&data.Content).(encoding.TextUnmarshaler); ok {
+			u.UnmarshalText([]byte(c.String("content")))
+		}
 	}
 	return data
 }
