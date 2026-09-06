@@ -1,0 +1,30 @@
+content:
+  addUser: Add user
+  addUserToWorkspaceHint: Search for an existing user and pick one of this workspace's
+    roles.
+  body: Body
+  confirmEmailSender: User signup confirm account email
+  createNewWorkspace: New workspace
+  customizedTemplate: Customize template
+  editWorkspae: Edit workspace
+  emailSendingConfiguration: Email Sending Configuration
+  emailSendingConfigurationHint: Control how the system emails are being sent, customize
+    the message, etc.
+  forgetPasswordSender: Forget password instructions
+  inviteToWorkspace: Invite to workspace
+  mailServerConfiguration: Mail server configuration
+  menuTitle: Workspaces
+  name: Name
+  notificationDialogTitle: Edit the mail template
+  resetToDefault: Reset to default
+  selectRole: Role
+  selectUser: User
+  sender: Sender
+  sidetitle: Workspaces
+  title: Title
+  type: Type
+  userAddedToWorkspace: User added to the workspace
+  workspaceName: Workspace name
+  workspaceNameHint: Enter the workspace name
+  workspaceType: Workspace type
+  workspaceTypeHint: Choose the type which defines this workspace's role. Required.

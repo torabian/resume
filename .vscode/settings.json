@@ -1,0 +1,13 @@
+{
+  "emeraldwalk.runonsave": {
+    "commands": [
+      {
+        "cmd": "emi compile --path ${relativeFile}",
+        "match": "\\.emi.yml$"
+      }
+    ]
+  },
+  "yaml.schemas": {
+    "./.vscode/emi-module-spec.json": ["*.emi.yml", "*.emi.yaml"]
+  }
+}

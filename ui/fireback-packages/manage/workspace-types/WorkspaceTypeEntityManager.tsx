@@ -1,0 +1,56 @@
+import { useCommonEntityManager } from "@fireback/ui-core/hooks/useCommonEntityManager";
+import { useS } from "@fireback/ui-core/hooks/useS";
+import { strings } from "./strings/translations";
+
+import {
+  CommonEntityManager,
+  type DtoEntity,
+} from "@fireback/ui-core/components/entity-manager/CommonEntityManager";
+import { useWorkspaceTypeCreateAction } from "@fireback/manage/sdk/abac/WorkspaceTypeCreateAction";
+import { WorkspaceTypeDto } from "@fireback/manage/sdk/abac/WorkspaceTypeDto";
+import { useWorkspaceTypeGetActionQuery } from "@fireback/manage/sdk/abac/WorkspaceTypeGetAction";
+import { useWorkspaceTypeUpdateAction } from "@fireback/manage/sdk/abac/WorkspaceTypeUpdateAction";
+import { WorkspaceTypeNavigation } from "@fireback/ui-core/sdk/navigation/AbacNavigation";
+import { WorkspaceTypeEditForm } from "./WorkspaceTypeEditForm";
+
+export const WorkspaceTypeEntityManager = ({
+  data,
+}: DtoEntity<WorkspaceTypeDto>) => {
+  const { router, uniqueId, queryClient } = useCommonEntityManager<
+    Partial<WorkspaceTypeDto>
+  >({
+    data,
+  });
+  const s = useS(strings);
+
+  const getSingleHook = useWorkspaceTypeGetActionQuery({
+    params: { uniqueId },
+  });
+
+  const postHook = useWorkspaceTypeCreateAction({});
+
+  const patchHook = useWorkspaceTypeUpdateAction({ params: { uniqueId } });
+
+  return (
+    <CommonEntityManager
+      postHook={postHook}
+      getSingleHook={getSingleHook}
+      patchHook={patchHook}
+      onCancel={() => {
+        router.goBackOrDefault(WorkspaceTypeNavigation.query());
+      }}
+      onFinishUriResolver={(response) =>
+        WorkspaceTypeNavigation.single(response.data?.uniqueId)
+      }
+      Form={WorkspaceTypeEditForm}
+      onEditTitle={s.editWorkspaceType}
+      onCreateTitle={s.newWorkspaceType}
+      // The seeded "root" workspace type is a system fixture (RepairTheWorkspaces,
+      // WorkspaceActions.go) - WorkspaceTypeUpdateAction rejects modifying it
+      // outright, so the form is locked read-only here too rather than letting an
+      // admin fill it out only to have Save fail.
+      disabled={uniqueId === "root"}
+      data={data}
+    />
+  );
+};

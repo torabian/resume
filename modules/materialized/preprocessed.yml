@@ -1,0 +1,259 @@
+targets:
+- compiler: js
+  flags:
+    js-sdk-location: '@fireback/js-remote-ctx'
+  output: ../../ui/src/modules/materialized/sdk
+  tags:
+  - typescript
+  - react
+  - no-sdk
+  - no-package
+- compiler: go
+  flags:
+    pkg: materializeddefs
+  output: ./defs
+- compiler: preprocessor
+  output: .
+description: Materialized module - composes a presentable resume "variant" out of
+  pieces that already live in the resume module, instead of duplicating their data.
+  A person keeps one canonical set of work experience/education/ skill/project/certification/language
+  rows (see ../resume/Resume.emi.yml) and, for any given application, picks which
+  of those rows to include and in what order in a MaterializedResumeEntity - the thing
+  that actually gets rendered to PDF/LaTeX. Renaming a skill or fixing a typo in a
+  job description happens once, in the resume module, and is reflected in every materialized
+  variant that references it.
+name: materialized
+dtos:
+- description: Every field of the "materializedResume" entity, but optional - used
+    both as Update's partial input and as Browse's response item shape.
+  name: materializedResumeOptional
+  fields:
+  - name: uniqueId
+    type: string?
+  - name: title
+    description: Label for this variant, e.g. "Backend-focused - Acme Corp application".
+    type: string?
+  - name: targetRole
+    description: The role/company this variant was tailored for, if any.
+    type: string?
+  - name: resume
+    description: The base Resume this variant is assembled from.
+    type: one?
+    target: ResumeDto
+    module: resumedefs
+    provider: github.com/torabian/resume/modules/resume/defs
+  - name: workExperiences
+    type: collection?
+    target: WorkExperienceDto
+    module: resumedefs
+    provider: github.com/torabian/resume/modules/resume/defs
+  - name: educations
+    type: collection?
+    target: EducationDto
+    module: resumedefs
+    provider: github.com/torabian/resume/modules/resume/defs
+  - name: skills
+    type: collection?
+    target: SkillDto
+    module: resumedefs
+    provider: github.com/torabian/resume/modules/resume/defs
+  - name: projects
+    type: collection?
+    target: ProjectDto
+    module: resumedefs
+    provider: github.com/torabian/resume/modules/resume/defs
+  - name: certifications
+    type: collection?
+    target: CertificationDto
+    module: resumedefs
+    provider: github.com/torabian/resume/modules/resume/defs
+  - name: languages
+    type: collection?
+    target: LanguageDto
+    module: resumedefs
+    provider: github.com/torabian/resume/modules/resume/defs
+- description: Plain dto mirroring the "materializedResume" entity's own fields.
+  name: materializedResume
+  fields:
+  - name: uniqueId
+    type: string?
+  - name: title
+    description: Label for this variant, e.g. "Backend-focused - Acme Corp application".
+    type: string
+  - name: targetRole
+    description: The role/company this variant was tailored for, if any.
+    type: string?
+  - name: resume
+    description: The base Resume this variant is assembled from.
+    type: one?
+    target: ResumeDto
+    module: resumedefs
+    provider: github.com/torabian/resume/modules/resume/defs
+  - name: workExperiences
+    type: collection?
+    target: WorkExperienceDto
+    module: resumedefs
+    provider: github.com/torabian/resume/modules/resume/defs
+  - name: educations
+    type: collection?
+    target: EducationDto
+    module: resumedefs
+    provider: github.com/torabian/resume/modules/resume/defs
+  - name: skills
+    type: collection?
+    target: SkillDto
+    module: resumedefs
+    provider: github.com/torabian/resume/modules/resume/defs
+  - name: projects
+    type: collection?
+    target: ProjectDto
+    module: resumedefs
+    provider: github.com/torabian/resume/modules/resume/defs
+  - name: certifications
+    type: collection?
+    target: CertificationDto
+    module: resumedefs
+    provider: github.com/torabian/resume/modules/resume/defs
+  - name: languages
+    type: collection?
+    target: LanguageDto
+    module: resumedefs
+    provider: github.com/torabian/resume/modules/resume/defs
+entities:
+- name: materializedResume
+  fields:
+  - name: title
+    description: Label for this variant, e.g. "Backend-focused - Acme Corp application".
+    type: string
+  - name: targetRole
+    description: The role/company this variant was tailored for, if any.
+    type: string?
+  - name: resume
+    description: The base Resume this variant is assembled from.
+    type: one
+    target: ResumeEntity
+    module: resumedefs
+    provider: github.com/torabian/resume/modules/resume/defs
+  - name: workExperiences
+    type: collection?
+    target: WorkExperienceEntity
+    module: resumedefs
+    provider: github.com/torabian/resume/modules/resume/defs
+  - name: educations
+    type: collection?
+    target: EducationEntity
+    module: resumedefs
+    provider: github.com/torabian/resume/modules/resume/defs
+  - name: skills
+    type: collection?
+    target: SkillEntity
+    module: resumedefs
+    provider: github.com/torabian/resume/modules/resume/defs
+  - name: projects
+    type: collection?
+    target: ProjectEntity
+    module: resumedefs
+    provider: github.com/torabian/resume/modules/resume/defs
+  - name: certifications
+    type: collection?
+    target: CertificationEntity
+    module: resumedefs
+    provider: github.com/torabian/resume/modules/resume/defs
+  - name: languages
+    type: collection?
+    target: LanguageEntity
+    module: resumedefs
+    provider: github.com/torabian/resume/modules/resume/defs
+  description: 'One assembled, presentable resume: a title/target-role label, the
+    base Resume it''s built from, and an ordered pick of that resume''s own section
+    rows (each `collection` field below is a many-to-many join against the resume
+    module''s own entities - picking a row here doesn''t copy it, it just links to
+    it).'
+actions:
+- name: materializedResumeCreate
+  cliName: create
+  cliShort: c
+  url: /materializedResume
+  method: post
+  description: Creates a new "materializedResume" row.
+  in:
+    dto: MaterializedResumeDto
+  out:
+    envelope: GResponse
+    dto: MaterializedResumeDto
+- name: materializedResumeUpdate
+  cliName: update
+  cliShort: u
+  url: /materializedResume/:uniqueId
+  method: patch
+  description: Applies a partial update to a "materializedResume" row by uniqueId.
+  in:
+    dto: MaterializedResumeOptionalDto
+  out:
+    envelope: GResponse
+    dto: MaterializedResumeDto
+- name: materializedResumeGet
+  cliName: get
+  cliShort: g
+  url: /materializedResume/:uniqueId
+  method: get
+  description: Looks up a single "materializedResume" row by uniqueId.
+  out:
+    envelope: GResponse
+    dto: MaterializedResumeDto
+- name: materializedResumeBrowse
+  cliName: browse
+  cliShort: b
+  url: /materializedResume/browse
+  method: get
+  qs:
+  - name: filter
+    type: string
+  - name: sort
+    type: string
+  - name: startIndex
+    type: int
+  - name: itemsPerPage
+    type: int
+  - name: cursor
+    type: string
+  description: Returns "materializedResume" rows matching a filter, sorted/paged (see
+    emigorm.ApplyQueryFilter/ApplyQueryScope).
+  out:
+    envelope: GResponse
+    dto: MaterializedResumeOptionalDto
+- name: materializedResumeAwareDeletePreview
+  cliName: delete-preview
+  cliShort: dp
+  url: /materializedResume/delete-preview
+  method: get
+  qs:
+  - name: uniqueIds
+    type: slice
+    primitive: string
+  description: Reports what deleting the given "materializedResume" uniqueIds would
+    affect, without deleting anything.
+  out:
+    envelope: GResponse
+    fields:
+    - name: message
+      type: string
+    - name: affected
+      type: array
+      fields:
+      - name: relation
+        type: string
+      - name: count
+        type: int64
+- name: materializedResumeAwareDelete
+  cliName: delete
+  cliShort: d
+  url: /materializedResume/delete
+  method: post
+  description: Deletes the given "materializedResume" uniqueIds, along with everything
+    materializedResumeAwareDeletePreview reports.
+  in:
+    fields:
+    - name: uniqueIds
+      type: slice
+      primitive: string

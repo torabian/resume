@@ -1,0 +1,330 @@
+/*
+ * All styles for the resumable-uploader feature live in this single file so
+ * the components stay free of inline `style={{...}}` objects. Each block
+ * below is commented with the component (and, where relevant, the specific
+ * element) it belongs to - keep new styles grouped the same way instead of
+ * reintroducing inline styles.
+ */
+
+/* ==========================================================================
+   FileUploader.tsx - UploadRow (one row in the in-progress upload queue)
+   ========================================================================== */
+
+.ru-upload-row {
+  display: flex;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid #e2e2e5;
+  border-radius: 6px;
+  align-items: flex-start;
+}
+
+.ru-upload-row__preview {
+  flex-shrink: 0;
+}
+
+.ru-upload-row__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ru-upload-row__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ru-upload-row__filename {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ru-upload-row__size {
+  font-size: 12px;
+  color: #777;
+  flex-shrink: 0;
+}
+
+.ru-upload-row__status {
+  font-size: 12px;
+  color: #777;
+  margin-top: 2px;
+}
+
+.ru-upload-row__progress-track {
+  margin-top: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: #eee;
+  overflow: hidden;
+}
+
+.ru-upload-row__progress-bar {
+  /* --ru-progress is set inline per-row from live upload progress (bytesUploaded / bytesTotal) - the one value that can't live in a static stylesheet. */
+  width: var(--ru-progress, 0%);
+  height: 100%;
+  transition: width 150ms ease;
+}
+
+/* Bar color reflects state: blue while actively uploading, amber once paused
+   (manually or due to going offline). */
+.ru-upload-row__progress-bar--uploading {
+  background: #3b82f6;
+}
+
+.ru-upload-row__progress-bar--paused {
+  background: #f59e0b;
+}
+
+/* Purple while a beforeUpload transform (e.g. VideoUploader's ffmpeg
+   re-encode) is running - visually distinct from the actual byte-transfer
+   states above it, since it isn't network progress at all. */
+.ru-upload-row__progress-bar--converting {
+  background: #8b5cf6;
+}
+
+/* Used when the running transform never reports a percentage (e.g.
+   ImageUploader's canvas conversion) - a sliding highlight instead of a
+   fixed width, so the row still visibly indicates "working", not "stuck at
+   0%". --ru-progress is ignored while this is applied. */
+.ru-upload-row__progress-bar--indeterminate {
+  width: 40% !important;
+  animation: ru-indeterminate 1.2s ease-in-out infinite;
+}
+
+@keyframes ru-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+.ru-upload-row__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+/* ==========================================================================
+   Shared button style for every action in this package (pause/resume/retry/
+   remove/clear/replace) - a plain, un-classed <button> was previously used
+   here, which just falls through to the browser's native button styling
+   (opaque light-gray face, dark text) with no regard for the app's own
+   light/dark theme. That reads fine against a light page but produces
+   unreadable/mismatched combinations once the surrounding UI goes dark
+   (see the prefers-color-scheme override below) - explicit, theme-aware
+   colors here instead, same transparent-ghost-button pattern already used by
+   loading-progress/LoadingProgress.css's __cancel button.
+   ========================================================================== */
+
+.ru-btn {
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: transparent;
+  color: inherit;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.ru-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* ==========================================================================
+   FileUploader.tsx - ExistingValueRow (value from a previously-saved form,
+   previewed via config.getThumbnailUrl instead of a local File object)
+   ========================================================================== */
+
+.ru-existing-row {
+  display: flex;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid #e2e2e5;
+  border-radius: 6px;
+  align-items: center;
+}
+
+.ru-existing-row__thumbnail {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.ru-existing-row__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ru-existing-row__label {
+  font-size: 12px;
+  color: #777;
+}
+
+.ru-existing-row__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+/* ==========================================================================
+   FileUploader.tsx - root FileUploader component (offline banner, drop zone,
+   max-size hint, hidden native file input, upload list container)
+   ========================================================================== */
+
+.ru-uploader {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ru-uploader__offline-banner {
+  padding: 8px;
+  border-radius: 6px;
+  background: #fff7ed;
+  color: #9a5b13;
+  font-size: 13px;
+}
+
+.ru-uploader__dropzone {
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  color: #555;
+  background: transparent;
+}
+
+/* Applied in addition to .ru-uploader__dropzone while a drag is over it. */
+.ru-uploader__dropzone--active {
+  border-color: #3b82f6;
+  background: #f0f6ff;
+}
+
+.ru-uploader__max-size-hint {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+}
+
+.ru-uploader__hidden-input {
+  display: none;
+}
+
+.ru-uploader__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ==========================================================================
+   FilePreview.tsx - inline preview of a locally-picked File, rendered per
+   mime type inside both UploadRow and (generic-icon variant only) also used
+   directly by ExistingValueRow's fallback markup
+   ========================================================================== */
+
+.ru-preview-image {
+  max-width: 100%;
+  max-height: 160px;
+  border-radius: 4px;
+  display: block;
+}
+
+.ru-preview-video {
+  max-width: 100%;
+  max-height: 200px;
+  display: block;
+}
+
+.ru-preview-audio {
+  width: 100%;
+}
+
+.ru-preview-pdf {
+  width: 100%;
+  height: 220px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.ru-preview-text {
+  background: #f5f5f5;
+  padding: 8px;
+  border-radius: 4px;
+  max-height: 160px;
+  overflow: auto;
+  font-size: 12px;
+  margin: 0;
+}
+
+/* Generic fallback icon (file extension badge) - shared by FilePreview's
+   default case and ExistingValueRow's thumbnail-load-failure fallback. */
+.ru-preview-generic {
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+  background: #e9e9ec;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: #555;
+}
+
+/* ==========================================================================
+   Dark mode overrides - every color above was picked against a light page
+   background; this re-covers each one that would otherwise be unreadable
+   (or just visually wrong) against a dark one. .ru-btn is the one that
+   actually matters most here (see its own comment above), but the rest of
+   this component's fixed light colors (row borders, offline banner, preview
+   placeholders) get the same treatment for consistency.
+   ========================================================================== */
+@media (prefers-color-scheme: dark) {
+  .ru-upload-row,
+  .ru-existing-row {
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .ru-btn {
+    border-color: rgba(255, 255, 255, 0.25);
+  }
+
+  .ru-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .ru-upload-row__progress-track {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .ru-uploader__offline-banner {
+    background: rgba(154, 91, 19, 0.25);
+    color: #ffb85c;
+  }
+
+  .ru-uploader__dropzone {
+    border-color: rgba(255, 255, 255, 0.25);
+    color: inherit;
+  }
+
+  .ru-uploader__dropzone--active {
+    background: rgba(59, 130, 246, 0.15);
+  }
+
+  .ru-preview-pdf {
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .ru-preview-text,
+  .ru-preview-generic {
+    background: rgba(255, 255, 255, 0.08);
+    color: inherit;
+  }
+}

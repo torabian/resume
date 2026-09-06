@@ -1,0 +1,30 @@
+content:
+  addUser: Dodaj użytkownika
+  addUserToWorkspaceHint: Wyszukaj istniejącego użytkownika i wybierz jedną z ról
+    tej przestrzeni roboczej.
+  body: Treść
+  confirmEmailSender: E-mail potwierdzający rejestrację konta użytkownika
+  createNewWorkspace: Nowa przestrzeń robocza
+  customizedTemplate: Dostosuj szablon
+  editWorkspae: Edytuj przestrzeń roboczą
+  emailSendingConfiguration: Konfiguracja wysyłania e-maili
+  emailSendingConfigurationHint: Kontroluj sposób wysyłania e-maili systemowych, dostosuj
+    wiadomość itp.
+  forgetPasswordSender: Instrukcje przypomnienia hasła
+  inviteToWorkspace: Zaproś do przestrzeni roboczej
+  mailServerConfiguration: Konfiguracja serwera pocztowego
+  menuTitle: Przestrzenie robocze
+  name: Nazwa
+  notificationDialogTitle: Edytuj szablon wiadomości
+  resetToDefault: Przywróć domyślne
+  selectRole: Rola
+  selectUser: Użytkownik
+  sender: Nadawca
+  sidetitle: Przestrzenie robocze
+  title: Tytuł
+  type: Typ
+  userAddedToWorkspace: Użytkownik dodany do przestrzeni roboczej
+  workspaceName: Nazwa przestrzeni roboczej
+  workspaceNameHint: Wprowadź nazwę przestrzeni roboczej
+  workspaceType: Typ przestrzeni roboczej
+  workspaceTypeHint: Wybierz typ, który określa rolę tej przestrzeni roboczej. Wymagane.

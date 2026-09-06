@@ -1,0 +1,14 @@
+content:
+  capabilities:
+    archiveTitle: Capabilities
+    description: Description
+    descriptionHint: Description
+    editCapability: Edit capability
+    name: Name
+    nameHint: Name
+    newCapability: New capability
+    uniqueId: Id
+    uniqueIdHint: >-
+      A unique key for this capability (e.g. "students.query"). Optional - if left
+      blank, one is generated for you. Cannot be changed after creation.
+    uniqueIdLockedHint: The id cannot be changed after a capability has been created.

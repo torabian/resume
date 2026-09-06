@@ -1,0 +1,99 @@
+name: materialized
+
+targets:
+  # Same shape/reasoning as ../resume/Resume.emi.yml's own js target - see
+  # its comment.
+  - compiler: js
+    output: ../../ui/src/modules/materialized/sdk
+    tags:
+      - typescript
+      - react
+      - no-sdk
+      - no-package
+    flags:
+      js-sdk-location: '@fireback/js-remote-ctx'
+  - compiler: go
+    output: ./defs
+    flags:
+      pkg: materializeddefs
+  - compiler: preprocessor
+    output: .
+
+description: >-
+  Materialized module - composes a presentable resume "variant" out of
+  pieces that already live in the resume module, instead of duplicating
+  their data. A person keeps one canonical set of work experience/education/
+  skill/project/certification/language rows (see ../resume/Resume.emi.yml)
+  and, for any given application, picks which of those rows to include and
+  in what order in a MaterializedResumeEntity - the thing that actually gets
+  rendered to PDF/LaTeX. Renaming a skill or fixing a typo in a job
+  description happens once, in the resume module, and is reflected in every
+  materialized variant that references it.
+
+entities:
+  - name: materializedResume
+    description: >-
+      One assembled, presentable resume: a title/target-role label, the base
+      Resume it's built from, and an ordered pick of that resume's own
+      section rows (each `collection` field below is a many-to-many join
+      against the resume module's own entities - picking a row here doesn't
+      copy it, it just links to it).
+    fields:
+      - name: title
+        type: string
+        description: >-
+          Label for this variant, e.g. "Backend-focused - Acme Corp
+          application".
+      - name: targetRole
+        type: string?
+        description: The role/company this variant was tailored for, if any.
+
+      # `one`/`collection` fields below all target entities defined in
+      # ../resume/Resume.emi.yml, hence module+provider (see
+      # ../../.vscode/emi-module-spec.json's EmiField.Provider doc comment,
+      # and ../../../nima/modules/score/Score.emi.yml's musicalWork field for
+      # the same cross-module pattern) - without these two, the Go compiler
+      # would assume ResumeEntity/WorkExperienceEntity/etc. live in this same
+      # package and fail to compile.
+      - name: resume
+        type: one
+        target: ResumeEntity
+        module: resumedefs
+        provider: github.com/torabian/resume/modules/resume/defs
+        description: The base Resume this variant is assembled from.
+
+      - name: workExperiences
+        type: collection?
+        target: WorkExperienceEntity
+        module: resumedefs
+        provider: github.com/torabian/resume/modules/resume/defs
+
+      - name: educations
+        type: collection?
+        target: EducationEntity
+        module: resumedefs
+        provider: github.com/torabian/resume/modules/resume/defs
+
+      - name: skills
+        type: collection?
+        target: SkillEntity
+        module: resumedefs
+        provider: github.com/torabian/resume/modules/resume/defs
+
+      - name: projects
+        type: collection?
+        target: ProjectEntity
+        module: resumedefs
+        provider: github.com/torabian/resume/modules/resume/defs
+
+      - name: certifications
+        type: collection?
+        target: CertificationEntity
+        module: resumedefs
+        provider: github.com/torabian/resume/modules/resume/defs
+
+      - name: languages
+        type: collection?
+        target: LanguageEntity
+        module: resumedefs
+        provider: github.com/torabian/resume/modules/resume/defs

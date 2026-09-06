@@ -1,0 +1,23 @@
+{
+  "name": "@fireback/virtual-entity-manager",
+  "version": "1.0.0",
+  "description": "Schema-driven replacement for the per-entity list/form/single-screen bundle an emi-generated entity normally needs - see VirtualEntityManager.tsx's own doc comment.",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@fireback/jsf": "*",
+    "@fireback/ui-core": "*",
+    "@rjsf/utils": "^6.8.0"
+  },
+  "peerDependencies": {
+    "react": "19",
+    "react-router-dom": "^6.9.0",
+    "@tanstack/react-query": "^5.101.4"
+  },
+  "keywords": []
+}

@@ -1,0 +1,55 @@
+{
+  "name": "@fireback/resumable-uploader",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Standalone resumable file upload widget for React (tus protocol - uploads survive page reloads and network drops). Dependency-free besides tus-js-client, except VideoUploader's optional client-side conversion, which needs @ffmpeg/ffmpeg + @ffmpeg/util installed separately. Does not import from any other fireback package - safe to use in any React project.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "@ffmpeg/ffmpeg": "^0.12.10",
+    "@ffmpeg/util": "^0.12.1"
+  },
+  "peerDependenciesMeta": {
+    "@ffmpeg/ffmpeg": {
+      "optional": true
+    },
+    "@ffmpeg/util": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "tus-js-client": "^4.1.0"
+  },
+  "devDependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
+    "@types/react": "^18.2.61",
+    "tsup": "^8.3.5",
+    "typescript": "^5.6.2"
+  }
+}

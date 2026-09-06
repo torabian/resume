@@ -1,0 +1,60 @@
+extends: []
+content:
+  help:
+    myWallets: >-
+      Your own wallets, one per currency you've been provisioned in (or created
+      yourself, if self-service wallet creation is enabled). Balance only ever moves
+      through a top up, a purchase, a peer-to-peer transfer, or redeeming a prepaid gift
+      card - it can never be edited directly. Use the "Top up" button on any row to add
+      funds through a payment gateway; open a wallet to see its own full transaction
+      history.
+    walletHistory: >-
+      The read-only, append-only ledger of every balance change on this wallet - top
+      ups, purchases, transfers in or out, prepaid redemptions, refunds, and any manual
+      adjustment an admin has made, each with its own direction, amount, and running
+      balance. Nothing here can be edited or deleted - if something needs correcting, a
+      new offsetting entry is added instead, so the history always tells the true story
+      of how the balance got to where it is.
+  myWallets:
+    archiveTitle: My Wallets
+    newWallet: New wallet
+    createDisabled: Creating your own wallet is currently disabled. Contact an
+      administrator if you need a new one.
+    currency: Currency
+    balance: Balance
+    status: Status
+    label: Label
+    ownerType: Owner
+    ownerUser: You
+    ownerWorkspace: Workspace
+    isDefault: Default
+    view: View
+    topUp: Top up
+    back: Back to my wallets
+    historyTitle: Transaction History
+    direction: Direction
+    directionCredit: Credit
+    directionDebit: Debit
+    amount: Amount
+    balanceAfter: Balance After
+    reason: Reason
+    note: Note
+    createdAt: Date
+    topupTitle: Top Up
+    topupDescription: Add funds to this wallet through a payment gateway.
+    wallet: Wallet
+    gateway: Gateway
+    selectGateway: Select a payment method...
+    noGatewayForCurrency: No payment gateway currently supports this wallet's currency.
+    amountHint: Amount to add, as a minor-units decimal string (e.g. cents for USD).
+    returnUrl: Return URL
+    returnUrlHint: Where to send you back to once the payment completes. Required for
+      gateways that redirect your browser to complete payment.
+    submit: Start top up
+    submitting: Starting...
+    success: Top up started.
+    redirecting: Redirecting you to the payment gateway...
+    clientSecretNotice: This gateway needs an extra confirmation step in the browser
+      that isn't wired up here yet - the payment attempt was created, but you'll need
+      to complete it another way.
+    attemptCreated: "Payment attempt created, status:"

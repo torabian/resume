@@ -1,0 +1,29 @@
+content:
+  regionalContents:
+    archiveTitle: محتوای منطقه‌ای
+    editRegionalContent: ویرایش محتوای منطقه‌ای
+    newRegionalContent: محتوای منطقه‌ای جدید
+    keyGroup: گروه کلید
+    keyGroupHint: این محتوا برای چه نوع پیامی استفاده می‌شود.
+    keyGroupSmsOtp: رمز یک‌بار مصرف پیامکی
+    keyGroupEmailOtp: رمز یک‌بار مصرف ایمیلی
+    region: منطقه
+    regionHint: منطقه یا محلی که این محتوا برای آن استفاده می‌شود، برای مثال any، us، eu یا asia/*. در صورتی که نیازی به منطقه خاصی ندارید any را وارد کنید.
+    uniqueId: شناسه
+    definitionsTitle: تعاریف
+    definitionsHint: به ازای هر زبانی که این محتوا به آن ترجمه شده یک ورودی. برای افزودن تعریف، ابتدا این رکورد را ذخیره کنید.
+    addDefinition: افزودن تعریف
+    newDefinition: تعریف جدید
+    editDefinition: ویرایش تعریف
+    noDefinitions: هنوز تعریفی وجود ندارد. برای اینکه این محتوا متن واقعی داشته باشد یکی اضافه کنید.
+    locale: زبان
+    localeHint: کد زبانی که این تعریف به آن نوشته شده، برای مثال en، fa یا pl. اگر زبان کاربر پیدا نشود، به انگلیسی برمی‌گردد.
+    title: عنوان
+    titleHint: عنوان اختیاری - فقط برای محتوای نوع ایمیل استفاده می‌شود.
+    content: محتوا
+    contentHint: متن اصلی که برای کاربر ارسال می‌شود. از قالب Go برای درج مقادیر پویا مانند {{.Otp}} به‌عنوان رمز یک‌بار مصرف پشتیبانی می‌کند.
+    deleteDefinitionConfirmTitle: حذف تعریف
+    deleteDefinitionConfirmDescription: آیا مطمئن هستید که می‌خواهید تعریف "{locale}" را حذف کنید؟ این عمل قابل بازگشت نیست.
+    definitionCreated: تعریف ایجاد شد
+    definitionUpdated: تعریف به‌روزرسانی شد
+    definitionDeleted: تعریف حذف شد

@@ -1,0 +1,15 @@
+{
+  "VITE_REMOTE_SERVICE": "https://noteava.nimafereidooni.com/",
+  "PUBLIC_URL": "https://noteava.nimafereidooni.com",
+  "VITE_PUBLIC_URL": "https://noteava.nimafereidooni.com",
+  "VITE_DEFAULT_ROUTE": "/dashboard",
+  "VITE_TARGET_APP": "public",
+  "VITE_ALLOW_OS_LOGIN": "false",
+  "VITE_SUPPORTED_LANGUAGES": "fa,en",
+  "VITE_FORCED_LOCALE": "fa",
+  "VITE_USE_HASH_ROUTER": "true",
+  "VITE_INACCURATE_MOCK_MODE": "false",
+  "VITE_TITLE": "nima",
+  "VITE_SELF_SERVICE_URL": "https://noteava.nimafereidooni.com/selfservice",
+  "VITE_SELF_SERVICE_REDIRECT_URL": "https://noteava.nimafereidooni.com/"
+}

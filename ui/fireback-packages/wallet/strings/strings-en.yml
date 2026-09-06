@@ -1,0 +1,256 @@
+content:
+  help:
+    wallets: >-
+      Every wallet in the system, across every owner - a wallet is created for a user
+      (ownerType "user"), a workspace (ownerType "workspace"), or one specific user
+      scoped to one specific workspace (ownerType "workspaceUser", e.g. so a
+      workspace-restricted prepaid gift card has somewhere to be redeemed into). Balance
+      can never be edited here directly - it only ever changes through a topup,
+      purchase, transfer, prepaid redemption, or the "Adjust Balance" screen (a manual
+      support/ops correction, always logged with a note). "Frozen" is a stronger,
+      root-only block on top of status - it stops every balance change regardless of
+      status, and can only be set/cleared from a wallet's own detail screen. A wallet
+      can only be deleted while it has a zero balance and has never recorded a single
+      ledger transaction - otherwise close it (status "closed") instead.
+    walletCurrencies: >-
+      The currencies wallets can be created in. "Decimals" fixes the minor-unit
+      precision every amount for that currency is expressed in from then on (e.g. 2 for
+      USD so "10050" means $100.50, 8 for BTC) - get this right before anyone starts
+      using the currency, since every wallet/transaction/attempt in it is interpreted at
+      this same precision forever. Turning "Active" off blocks new wallets/topups in
+      this currency but never touches wallets that already exist in it.
+    walletGateways: >-
+      Payment providers wallet owners can top up through (Stripe, Przelewy24, BLIK,
+      ZarinPal, or this project's own fake test provider). "Config" must only ever hold
+      references to secrets (e.g. a secrets-manager key name) - never a raw API key or
+      webhook secret in plaintext. "Supported Currencies" narrows which currencies a
+      topup form will actually offer this gateway for. Turning "Active" off hides a
+      gateway from new topups without touching payment attempts already in flight
+      through it.
+    walletProviderConfigs: >-
+      Root-only, non-secret configuration for one payment provider adapter in one
+      region - at most one row per (provider type, region) pair. "Provider Type" must
+      match a registered adapter's own code (stripe, przelewy24, blik, zarinpal, ...);
+      "Region" is an ISO-3166-ish code, or "global" to apply everywhere. This is
+      separate from a walletGateway row's own "Config" field - this one is the
+      provider-side integration settings, that one is what a specific gateway offering
+      exposes to wallet owners.
+    walletTransactions: >-
+      The append-only balance-history ledger - one row is written every time any
+      wallet's balance changes (topup, purchase, refund, adjustment, transfer, prepaid
+      redemption, treasury funding, fee, chargeback), always in the same database
+      transaction as the balance update itself, so this list and a wallet's current
+      balance can never drift apart. Read-only: a ledger entry is never edited or
+      deleted after creation - a correction is always a new, offsetting entry, never an
+      edit to an old one. "Reason" is what kind of event produced the row; "Reference
+      Type"/"Reference Id" point back at whatever caused it (a payment attempt, a
+      prepaid card, a treasury, another wallet in a transfer, ...).
+    walletPaymentAttempts: >-
+      Every attempt a wallet owner has made to move money through a payment gateway -
+      read-only, for support/troubleshooting. "Purpose" is topup, purchase, or
+      withdrawal; "Status" tracks its own lifecycle (pending, succeeded, failed,
+      cancelled, ...) independently of whether a walletTransaction ledger entry ever got
+      created for it - only a succeeded attempt has one.
+    walletEvents: >-
+      The raw inbound webhook audit log from every payment gateway - read-only, one row
+      per callback received, whether or not it matched a known payment attempt or was
+      successfully processed. Useful for diagnosing a topup that never completed:
+      "Processing Error" explains why a specific event was rejected or ignored, and
+      "Payload" is the exact data the gateway sent.
+    prepaids: >-
+      Root-issued prepaid gift cards - each redeemable exactly once, for its own fixed
+      face value, in its own fixed currency. A card can optionally be scoped to one
+      workspace ("Workspace") - it will then only redeem into a wallet belonging to that
+      exact workspace. A card can also optionally be linked to a "Backing Treasury" -
+      when set, redemption debits that treasury's own wallet instead of minting new
+      value, making it a real transfer instead of funds appearing from nowhere; leave it
+      unset for a card that's meant to just create value (e.g. a promotional gift).
+      "Redeem Key" is auto-generated if left blank on creation, and should never be
+      edited afterwards - it's the one secret that makes a card redeemable at all.
+    treasuries: >-
+      A treasury is a named pointer to one wallet - nothing more. Its own row never
+      moves money by itself; use "Fund Treasury" (root-only, always requires a note) to
+      actually credit its linked wallet, and prepaid gift cards can optionally debit it
+      on redemption (see prepaids' own guide) instead of minting new value. The linked
+      wallet can never be changed after a treasury is created, since funds may already
+      have moved through it - create a new treasury instead if you need to point at a
+      different wallet.
+  wallets:
+    archiveTitle: Wallets
+    newWallet: New wallet
+    ownerType: Owner type
+    ownerTypeHint: Whether this wallet belongs to a user or a workspace.
+    ownerUser: User
+    ownerWorkspace: Workspace
+    ownerWorkspaceUser: User in a workspace
+    workspaceUserHint: The wallet will belong to this user, scoped to this workspace only.
+    user: User
+    selectUser: Select a user...
+    workspace: Workspace
+    selectWorkspace: Select a workspace...
+    currency: Currency
+    currencyHint: Must match an active currency.
+    selectCurrency: Select a currency...
+    label: Label
+    labelHint: Optional nickname for this wallet.
+    balance: Balance
+    status: Status
+    owner: Owner
+    wallet: Wallet
+    selectWallet: Select a wallet...
+    direction: Direction
+    directionCredit: Credit
+    directionDebit: Debit
+    amount: Amount
+    amountHint: Positive minor-units decimal string (e.g. cents for USD).
+    adjustBalanceTitle: Adjust Balance
+    adjustBalanceDescription: Manual support/ops balance correction - runs through the same locked-transaction ledger path as a purchase.
+    adjustBalanceSection: Adjustment
+    adjustBalanceNote: Note
+    adjustBalanceNoteHint: Required - explain why this adjustment was made.
+    adjustBalanceSubmit: Adjust balance
+    adjustBalanceSubmitting: Adjusting...
+    adjustBalanceSuccess: Balance adjusted.
+  walletCurrencies:
+    archiveTitle: Wallet Currencies
+    newWalletCurrency: New currency
+    editWalletCurrency: Edit currency
+    code: Code
+    codeHint: e.g. USD, EUR, BTC. Unique across all currencies.
+    name: Name
+    kind: Kind
+    kindFiat: Fiat
+    kindCrypto: Crypto
+    decimals: Decimals
+    decimalsHint: Minor-unit precision (e.g. 2 for USD, 8 for BTC).
+    symbol: Symbol
+    symbolHint: Optional display symbol, e.g. $ or ₿.
+    isActive: Active
+    isActiveHint: Whether wallets/topups can currently be created in this currency.
+  walletGateways:
+    archiveTitle: Wallet Gateways
+    newWalletGateway: New gateway
+    editWalletGateway: Edit gateway
+    code: Code
+    codeHint: Unique code identifying the registered GatewayAdapter implementation.
+    name: Name
+    kind: Kind
+    isActive: Active
+    supportedCurrencies: Supported Currencies
+    supportedCurrenciesHint: Currencies wallet owners can top up through this gateway.
+    config: Config
+    configHint: Provider configuration - must only hold references to secrets, never raw API keys/webhook secrets.
+  walletProviderConfigs:
+    archiveTitle: Wallet Provider Configs
+    newWalletProviderConfig: New provider config
+    editWalletProviderConfig: Edit provider config
+    providerType: Provider Type
+    providerTypeHint: Must match a registered adapter's Code(), e.g. stripe, przelewy24, blik, zarinpal.
+    region: Region
+    regionHint: ISO-3166-ish region code, or "global" for every region.
+    isEnabled: Enabled
+    config: Config
+    configHint: Provider-specific, non-secret settings.
+  walletTransactions:
+    archiveTitle: Wallet Transactions
+    singleTitle: Transaction
+    direction: Direction
+    amount: Amount
+    balanceAfter: Balance After
+    reason: Reason
+    referenceType: Reference Type
+    referenceId: Reference Id
+    idempotencyKey: Idempotency Key
+    note: Note
+    createdBy: Created By
+    createdAt: Created At
+    wallet: Wallet
+  walletPaymentAttempts:
+    archiveTitle: Wallet Payment Attempts
+    singleTitle: Payment Attempt
+    purpose: Purpose
+    amount: Amount
+    currency: Currency
+    status: Status
+    gatewayReference: Gateway Reference
+    idempotencyKey: Idempotency Key
+    failureReason: Failure Reason
+    returnUrl: Return Url
+    createdAt: Created At
+    expiresAt: Expires At
+    completedAt: Completed At
+    wallet: Wallet
+    gateway: Gateway
+  walletEvents:
+    archiveTitle: Wallet Gateway Events
+    singleTitle: Gateway Event
+    eventType: Event Type
+    externalEventId: External Event Id
+    processed: Processed
+    processingError: Processing Error
+    receivedAt: Received At
+    gateway: Gateway
+    payload: Payload
+  walletConfigs:
+    title: Wallet Config
+    description: Root-only wallet limits and defaults, shared by every workspace.
+    editWalletConfig: Edit wallet config
+    limitsSectionTitle: Wallet Limits
+    limitsSectionDescription: Maximum number of wallets a single user/workspace may own.
+    maxWalletsPerUser: Max Wallets Per User
+    maxWalletsPerUserHint: 0 means unlimited.
+    maxWalletsPerWorkspace: Max Wallets Per Workspace
+    maxWalletsPerWorkspaceHint: 0 means unlimited.
+    maxWalletsPerUserPerCurrency: Max Wallets Per User Per Currency
+    maxWalletsPerUserPerCurrencyHint: Leave empty for no extra per-currency limit.
+    maxWalletsPerWorkspacePerCurrency: Max Wallets Per Workspace Per Currency
+    maxWalletsPerWorkspacePerCurrencyHint: Leave empty for no extra per-currency limit.
+    selfServiceSectionTitle: Self-Service
+    selfServiceSectionDescription: Controls over what a user can do for themselves, without an admin.
+    allowUserCreateWallet: Allow users to create their own wallet
+    allowUserCreateWalletHint: When off, only an admin can create a wallet for a user (adminCreateWallet).
+    defaultUserWallets: Default User Wallets
+    defaultUserWalletsHint: Currencies a wallet is auto-provisioned in for every user, e.g. USD and IRR.
+  prepaids:
+    archiveTitle: Prepaid Gift Cards
+    newPrepaid: New gift card
+    editPrepaid: Edit gift card
+    amount: Amount
+    amountHint: Face value as a minor-units decimal string (e.g. cents for USD) - credited in full on redemption, no partial redemption.
+    currency: Currency
+    redeemKey: Redeem Key
+    redeemKeyHint: Auto-generated if left empty. Never edit this after issuing the card.
+    redeemKeyCreateHint: Leave empty to auto-generate a secure key.
+    status: Status
+    statusActive: Active
+    statusRedeemed: Redeemed
+    statusDisabled: Disabled
+    isExchangeable: Exchangeable
+    isExchangeableHint: Informational only for now - redemption always requires an exact currency match regardless of this flag.
+    locations: Locations
+    locationsHint: 'JSON array of location codes/names this card can be used at, e.g. ["store-1","store-2"]. Purely informational.'
+    workspaceId: Workspace
+    workspaceIdHint: When set, this card can only be redeemed into a wallet scoped to this exact workspace.
+    selectWorkspace: Select a workspace...
+    metadata: Metadata
+    metadataHint: Extra structured data, e.g. a batch/campaign id.
+    treasury: Backing Treasury
+    treasuryHint: When set, redemption debits this treasury's linked wallet instead of minting new value - see the treasury entity's own doc comment.
+    selectTreasury: Select a treasury...
+    redeemedAt: Redeemed At
+    redeemedWallet: Redeemed Into Wallet
+    walletTransaction: Ledger Entry
+    treasuryTransaction: Treasury Debit Entry
+  treasuries:
+    archiveTitle: Treasuries
+    newTreasury: New treasury
+    editTreasury: Edit treasury
+    name: Name
+    description: Description
+    walletId: Wallet
+    selectWallet: Select a wallet...
+    selectWalletHint: Must already exist - a treasury never creates a wallet inline, only links to one.
+    walletLockedHint: Can't be changed after creation - funds may already have moved through this treasury's wallet.
+    currency: Currency
+    balance: Balance
+    walletStatus: Wallet Status

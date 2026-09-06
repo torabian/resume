@@ -1,0 +1,424 @@
+/**
+* Dark-theme overrides.
+*
+* Palette: extracted from the platform project's AXER design system,
+* `.dark` scope (packages/ui/src/styles/globals.css) - a neutral charcoal
+* scale rather than the old slate-blue one, darkest to lightest:
+*   L0 #3b3b3b  (chrome: navbar, sidebar, root backdrop)          -- sidebar
+*   L1 #3d3e43  (page/content background, table stripes)          -- background
+*   L2 #44464b  (page-section, login form, cards, modals, tabbar) -- card
+*   L3 #4b4d53  (inputs, selects, hover/active states)            -- secondary/accent/muted
+*   L4 #5d5f65  (borders, scrollbar thumb)                        -- border/input
+* plus foreground text (#f1f1ef), muted text (#bfbfba), one accent blue
+* (#6596d7, the `--ring`/`--info` hue) and one destructive red (#c94545) -
+* so nothing clashes.
+*
+* Two kinds of rule live here:
+*
+* 1) Custom-property definitions for selectors that already have a known
+*    light-mode value elsewhere (theme-osx-core.css, tabbar-menu.css, ...).
+*    Those files reference var(--token, <light-value>) at the declaration
+*    site, so defining --token here (only under the two dark scopes below)
+*    is the only thing needed to flip them - no selector duplication.
+*
+* 2) A handful of selectors that only ever get a background/color from a
+*    3rd-party library's own CSS (react-toastify, react-select's generated
+*    classes, bootstrap's form/modal/dropdown defaults, devexpress-grid
+*    internals, react-flow, ...). We don't know their light-mode value well
+*    enough to use as a safe var() fallback (an unset var() still wins the
+*    cascade and computes to the property's initial value, which would blank
+*    them out in light mode) - so these stay written out under both dark
+*    scopes explicitly, same as this file's own two scopes below, just
+*    without a token indirection. This is the direct CSS equivalent of what
+*    the old `@include osx-dark()` mixin call compiled to at each site - it's
+*    just now written once per scope instead of hidden behind a mixin.
+*
+* Remember: we have dark, light, automatic mode. Dark and light are a
+* choice of the user, regardless of system color; if it's automatic, we
+* use the system theme.
+*/
+
+@media (prefers-color-scheme: dark) {
+  body.mac-theme:not(.light-theme),
+  body.ios-theme:not(.light-theme) {
+    --dark-theme-root-bg: rgba(61, 62, 67, 0.85);
+    --dark-bottom-nav-tabbar-bg: #44464b;
+    --dark-panel-resize-handle-bg: linear-gradient(90deg, #4b4d53, #3b3b3b);
+    --dark-navbar-bg: #3b3b3b;
+    --dark-navbar-border-color: #44464b;
+    --dark-content-container-bg: #3b3b3b;
+    --dark-table-even-row-bg: #44464b;
+    --dark-page-section-bg: #44464b;
+    --dark-sidebar-bg: #3b3b3b;
+    --dark-table-cell-bg: transparent;
+    --dark-scrollbar-track-bg: transparent;
+    --dark-scrollbar-track-border-color: transparent;
+    --dark-scrollbar-thumb-bg: #5d5f65;
+    --dark-login-form-bg: #44464b;
+    --dark-content-area-loader-bg: #3b3b3b;
+    --dark-basic-error-box-bg: #5c464a;
+    --dark-entity-view-field-value-bg: #44464b;
+
+    /* Bootstrap's own dark palette only kicks in under [data-bs-theme=dark],
+    which we never set (theming here runs on body.mac-theme/.dark-theme
+    instead) - so .text-muted's `color: var(--bs-secondary-color)` was still
+    resolving to Bootstrap's *light-mode* default (a dark, near-black gray),
+    unreadable on our dark surfaces. Redefining the variable itself is all
+    that's needed; every Bootstrap rule that reads it picks this up. */
+    --bs-secondary-color: #bfbfba;
+    --bs-secondary-color-rgb: 191, 191, 186;
+  }
+
+  .mac-theme:not(.light-theme),
+  .ios-theme:not(.light-theme) {
+    .Toastify__toast-theme--light {
+      background-color: #44464b !important;
+    }
+    select {
+      background-color: #4b4d53;
+    }
+    .general-action-menu {
+      &.mobile-view {
+        .action-menu-item {
+          background-color: #44464b;
+          color: #f1f1ef;
+        }
+      }
+    }
+    .sidebar {
+      li .nav-link .nav-link-text {
+        color: #f1f1ef;
+      }
+      li .active {
+        background-color: #4b4d53;
+      }
+      li .nav-link {
+        &.active:hover {
+          background-color: #4b4d53;
+        }
+      }
+      .current-user a strong,
+      .current-user a::after {
+        color: #f1f1ef;
+      }
+    }
+    select.form-select,
+    textarea {
+      background-color: #4b4d53;
+    }
+    .react-select-menu-area {
+      .css-d7l1ni-option {
+        background-color: #50627c;
+      }
+    }
+    .css-b62m3t-container .form-control,
+    .react-select-menu-area,
+    ul.dropdown-menu {
+      background-color: #44464b !important;
+    }
+    .css-1p3m7a8-multiValue {
+      background-color: #4b4d53;
+    }
+    .react-select-menu-area > div > div:hover {
+      background-color: #4b4d53 !important;
+    }
+    .menu-icon,
+    .action-menu-item img,
+    .page-navigator img {
+      filter: invert(0.5) sepia(1) saturate(5) hue-rotate(344deg);
+    }
+    .pagination a,
+    .modal-content {
+      background-color: #44464b;
+    }
+    .EZDrawer__container {
+      background: #44464b !important;
+      color: #f1f1ef;
+    }
+    .pagination .active button.page-link {
+      background-color: #6596d7;
+      color: #3b3b3b;
+    }
+    .pagination {
+      .page-item .page-link {
+        background-color: #44464b;
+      }
+    }
+    input {
+      background-color: #44464b;
+    }
+    .keybinding-combination {
+      > span {
+        background-color: #44464b;
+      }
+      &:hover {
+        span {
+          background-color: #f1f1ef;
+          color: #44464b;
+        }
+      }
+    }
+    .form-control {
+      background-color: #4b4d53;
+    }
+    .dx-g-bs4-table {
+      thead .input-group {
+        input {
+          background-color: transparent;
+          color: #f1f1ef;
+        }
+        input::placeholder {
+          color: #f1f1ef;
+        }
+      }
+    }
+    .card,
+    .section-title {
+      background-color: #44464b;
+    }
+    *:not(.invalid-feedback),
+    input {
+      color: #f1f1ef;
+      border-color: #5d5f65;
+    }
+    .styles_react-code-input__CRulA input {
+      color: #f1f1ef;
+    }
+    .diagram-fxfx {
+      .area-box {
+        background: #3b3b3b;
+        input.form-control,
+        textarea.form-control {
+          background-color: #121212;
+        }
+        .react-flow__handle {
+          background-color: #f1f1ef;
+        }
+      }
+    }
+    .react-flow__node.selected .area-box {
+      background-color: #44464b;
+    }
+    .upload-header {
+      background-color: #121212;
+    }
+    .active-upload-box {
+      background-color: #44464b;
+    }
+    .upload-file-item:hover {
+      background-color: #3b3b3b;
+    }
+    pre.bg-gray-100,
+    .ru-preview-text {
+      background: #44464b !important;
+      color: #f1f1ef;
+    }
+
+    /**
+     * react-data-grid ships its own, entirely separate dark-mode system -
+     * a .rdg-dark class and its own `@media (prefers-color-scheme: dark)`
+     * block, both scoped to CSS custom properties it defines inside an
+     * `@layer`. It has no idea our theme can be *forced* dark independently
+     * of the OS preference (that's the "sometimes white" bug: the grid only
+     * goes dark when the OS also prefers dark, regardless of our own
+     * mac-theme/dark-theme classes). Un-layered rules always win over
+     * `@layer`-wrapped ones regardless of specificity, so simply setting
+     * these same custom properties here - matched to our palette - reliably
+     * overrides the grid's own light default whenever *our* theme is dark.
+     */
+    .rdg {
+      --rdg-color: #f1f1ef;
+      --rdg-border-color: #5d5f65;
+      --rdg-summary-border-color: #5d5f65;
+      --rdg-background-color: #3b3b3b;
+      --rdg-header-background-color: #3b3b3b;
+      --rdg-header-draggable-background-color: #4b4d53;
+      --rdg-row-hover-background-color: #44464b;
+      --rdg-row-selected-background-color: rgba(101, 150, 215, 0.18);
+      --rdg-row-selected-hover-background-color: rgba(101, 150, 215, 0.26);
+      --rdg-checkbox-focus-color: #6596d7;
+    }
+  }
+}
+
+body.mac-theme.dark-theme,
+body.ios-theme.dark-theme {
+  --dark-theme-root-bg: rgba(61, 62, 67, 0.85);
+  --dark-bottom-nav-tabbar-bg: #44464b;
+  --dark-panel-resize-handle-bg: linear-gradient(90deg, #4b4d53, #3b3b3b);
+  --dark-navbar-bg: #3b3b3b;
+  --dark-navbar-border-color: #44464b;
+  --dark-content-container-bg: #3b3b3b;
+  --dark-table-even-row-bg: #44464b;
+  --dark-page-section-bg: #44464b;
+  --dark-sidebar-bg: #3b3b3b;
+  --dark-table-cell-bg: transparent;
+  --dark-scrollbar-track-bg: transparent;
+  --dark-scrollbar-track-border-color: transparent;
+  --dark-scrollbar-thumb-bg: #5d5f65;
+  --dark-login-form-bg: #44464b;
+  --dark-content-area-loader-bg: #3b3b3b;
+  --dark-basic-error-box-bg: #5c464a;
+  --dark-entity-view-field-value-bg: #44464b;
+  --bs-secondary-color: #bfbfba;
+  --bs-secondary-color-rgb: 191, 191, 186;
+}
+
+.mac-theme.dark-theme,
+.ios-theme.dark-theme {
+  .Toastify__toast-theme--light {
+    background-color: #44464b !important;
+  }
+  select {
+    background-color: #4b4d53;
+  }
+  .general-action-menu {
+    &.mobile-view {
+      .action-menu-item {
+        background-color: #44464b;
+        color: #f1f1ef;
+      }
+    }
+  }
+  .sidebar {
+    li .nav-link .nav-link-text {
+      color: #f1f1ef;
+    }
+    li .active {
+      background-color: #4b4d53;
+    }
+    li .nav-link {
+      &.active:hover {
+        background-color: #4b4d53;
+      }
+    }
+    .current-user a strong,
+    .current-user a::after {
+      color: #f1f1ef;
+    }
+  }
+  select.form-select,
+  textarea {
+    background-color: #4b4d53;
+  }
+  .react-select-menu-area {
+    .css-d7l1ni-option {
+      background-color: #50627c;
+    }
+  }
+  .css-b62m3t-container .form-control,
+  .react-select-menu-area,
+  ul.dropdown-menu {
+    background-color: #44464b !important;
+  }
+  .css-1p3m7a8-multiValue {
+    background-color: #4b4d53;
+  }
+  .react-select-menu-area > div > div:hover {
+    background-color: #4b4d53 !important;
+  }
+  .menu-icon,
+  .action-menu-item img,
+  .page-navigator img {
+    filter: invert(0.5) sepia(1) saturate(5) hue-rotate(344deg);
+  }
+  .pagination a,
+  .modal-content {
+    background-color: #44464b;
+  }
+  .EZDrawer__container {
+    background: #44464b !important;
+    color: #f1f1ef;
+  }
+  .pagination .active button.page-link {
+    background-color: #6596d7;
+    color: #3b3b3b;
+  }
+  .pagination {
+    .page-item .page-link {
+      background-color: #44464b;
+    }
+  }
+  input {
+    background-color: #44464b;
+  }
+  .keybinding-combination {
+    > span {
+      background-color: #44464b;
+    }
+    &:hover {
+      span {
+        background-color: #f1f1ef;
+        color: #44464b;
+      }
+    }
+  }
+  .form-control {
+    background-color: #4b4d53;
+  }
+  .dx-g-bs4-table {
+    thead .input-group {
+      input {
+        background-color: transparent;
+        color: #f1f1ef;
+      }
+      input::placeholder {
+        color: #f1f1ef;
+      }
+    }
+  }
+  .card,
+  .section-title {
+    background-color: #44464b;
+  }
+  *:not(.invalid-feedback),
+  input {
+    color: #f1f1ef;
+    border-color: #5d5f65;
+  }
+  .styles_react-code-input__CRulA input {
+    color: #f1f1ef;
+  }
+  .diagram-fxfx {
+    .area-box {
+      background: #3b3b3b;
+      input.form-control,
+      textarea.form-control {
+        background-color: #121212;
+      }
+      .react-flow__handle {
+        background-color: #f1f1ef;
+      }
+    }
+  }
+  .react-flow__node.selected .area-box {
+    background-color: #44464b;
+  }
+  .upload-header {
+    background-color: #121212;
+  }
+  .active-upload-box {
+    background-color: #44464b;
+  }
+  .upload-file-item:hover {
+    background-color: #3b3b3b;
+  }
+  pre.bg-gray-100,
+  .ru-preview-text {
+    background: #44464b !important;
+    color: #f1f1ef;
+  }
+
+  .rdg {
+    --rdg-color: #f1f1ef;
+    --rdg-border-color: #5d5f65;
+    --rdg-summary-border-color: #5d5f65;
+    --rdg-background-color: #3b3b3b;
+    --rdg-header-background-color: #3b3b3b;
+    --rdg-header-draggable-background-color: #4b4d53;
+    --rdg-row-hover-background-color: #44464b;
+    --rdg-row-selected-background-color: rgba(101, 150, 215, 0.18);
+    --rdg-row-selected-hover-background-color: rgba(101, 150, 215, 0.26);
+    --rdg-checkbox-focus-color: #6596d7;
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "name": "@fireback/overlay",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Framework-agnostic modal/drawer overlay stack (queue, promise-based resolve/reject/close, Escape-to-close, common confirm dialogs) for React. Only depends on React itself. Split into a `core` entry (state machine + types, no DOM - safe for React Native, bring your own wrapper components) and a `dom` entry (ready-made web modal/drawer chrome). Translation strings are passed in as a plain object instead of pulled from any global catalog.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "react-native": "./dist/index.js",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./dom": {
+      "types": "./dist/dom/index.d.ts",
+      "react-native": null,
+      "import": "./dist/dom/index.js",
+      "require": "./dist/dom/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "dom": ["dist/dom/index.d.ts"]
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "dependencies": {
+    "classnames": "^2.3.2",
+    "react-modern-drawer": "^1.4.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.61",
+    "tsup": "^8.3.5",
+    "typescript": "^5.6.2"
+  }
+}

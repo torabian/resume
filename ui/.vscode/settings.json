@@ -1,0 +1,19 @@
+{
+  "search.exclude": {
+    "**/.git": true,
+    "**/node_modules": true,
+    "**/bower_components": true,
+    "**/tmp": true,
+    "src/sdk/**": true
+  },
+  "emeraldwalk.runonsave": {
+    "commands": [
+      {
+        "match": "strings-([a-z][a-z]).yml$",
+        "cmd": "emi strings --path ${file} --langs en,fa"
+      }
+    ]
+  },
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
+}

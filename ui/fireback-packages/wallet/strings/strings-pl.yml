@@ -1,0 +1,279 @@
+extends: []
+content:
+  help:
+    prepaids: Karty podarunkowe wydane przez roota - każda możliwa do zrealizowania
+      dokładnie raz, o własnej stałej wartości nominalnej, we własnej stałej walucie.
+      Karta może opcjonalnie być ograniczona do jednej przestrzeni roboczej ("Przestrzeń
+      robocza") - wtedy zrealizuje się wyłącznie w portfelu należącym do dokładnie
+      tej przestrzeni roboczej. Karta może też opcjonalnie być powiązana ze "Skarbcem
+      zasilającym" - gdy ustawiony, realizacja obciąża portfel tego skarbca zamiast
+      tworzyć nową wartość, co czyni to prawdziwym przelewem, a nie środkami znikąd;
+      pozostaw puste dla karty, która ma po prostu tworzyć wartość (np. prezent promocyjny).
+      "Klucz realizacji" jest generowany automatycznie, jeśli pozostawiony pusty przy
+      tworzeniu, i nigdy nie powinien być edytowany później - to jedyny sekret, który
+      w ogóle czyni kartę możliwą do zrealizowania.
+    treasuries: Skarbiec to nazwany wskaźnik do jednego portfela - nic więcej. Jego
+      własny wiersz nigdy sam nie przesuwa środków; użyj "Zasil skarbiec" (tylko root,
+      zawsze wymaga notatki), aby faktycznie uznać powiązany portfel, a karty podarunkowe
+      mogą opcjonalnie obciążać go przy realizacji (patrz własny opis prepaids) zamiast
+      tworzyć nową wartość. Powiązanego portfela nigdy nie można zmienić po utworzeniu
+      skarbca, ponieważ środki mogły już przez niego przepłynąć - jeśli potrzebujesz
+      wskazać inny portfel, utwórz zamiast tego nowy skarbiec.
+    walletCurrencies: Waluty, w których można tworzyć portfele. "Miejsca dziesiętne"
+      (Decimals) ustalają precyzję jednostki podrzędnej, w jakiej każda kwota w tej
+      walucie jest wyrażana od tej pory (np. 2 dla USD, więc "10050" oznacza 100,50
+      USD, 8 dla BTC) - ustaw to poprawnie, zanim ktokolwiek zacznie używać waluty,
+      ponieważ każdy portfel/transakcja/próba płatności w niej jest interpretowana
+      z tą samą precyzją na zawsze. Wyłączenie "Aktywna" blokuje nowe portfele/doładowania
+      w tej walucie, ale nie dotyka portfeli, które już w niej istnieją.
+    walletEvents: 'Surowy dziennik audytowy przychodzących webhooków z każdej bramki
+      płatniczej - tylko do odczytu, jeden wiersz na otrzymane wywołanie zwrotne,
+      niezależnie od tego, czy dopasowano je do znanej próby płatności, czy przetworzono
+      pomyślnie. Przydatne przy diagnozowaniu doładowania, które nigdy się nie ukończyło:
+      "Błąd przetwarzania" wyjaśnia, dlaczego konkretne zdarzenie zostało odrzucone
+      lub zignorowane, a "Payload" to dokładne dane wysłane przez bramkę.'
+    walletGateways: Dostawcy płatności, przez których właściciele portfeli mogą się
+      doładowywać (Stripe, Przelewy24, BLIK, ZarinPal lub własny testowy dostawca
+      tego projektu). "Konfiguracja" (Config) może zawierać wyłącznie odniesienia
+      do sekretów (np. nazwę klucza w menedżerze sekretów) - nigdy surowego klucza
+      API ani sekretu webhooka w postaci jawnej. "Obsługiwane waluty" zawęża, dla
+      jakich walut formularz doładowania faktycznie oferuje tę bramkę. Wyłączenie
+      "Aktywna" ukrywa bramkę przed nowymi doładowaniami, nie wpływając na próby płatności
+      już będące w toku przez nią.
+    walletPaymentAttempts: Każda próba podjęta przez właściciela portfela w celu przesunięcia
+      środków przez bramkę płatniczą - tylko do odczytu, do celów wsparcia/diagnostyki.
+      "Cel" (Purpose) to doładowanie, zakup lub wypłata; "Status" śledzi własny cykl
+      życia (oczekująca, udana, nieudana, anulowana, ...) niezależnie od tego, czy
+      dla niej powstał wpis rejestru walletTransaction - taki wpis ma tylko udana
+      próba.
+    walletProviderConfigs: Nieszyfrowana, dostępna tylko dla roota konfiguracja jednego
+      adaptera dostawcy płatności w jednym regionie - co najwyżej jeden wiersz na
+      parę (typ dostawcy, region). "Typ dostawcy" musi pasować do kodu zarejestrowanego
+      adaptera (stripe, przelewy24, blik, zarinpal, ...); "Region" to kod w stylu
+      ISO-3166 lub "global" dla wszystkich regionów. Jest to odrębne od pola "Konfiguracja"
+      samego wiersza walletGateway - tamto to ustawienia integracji po stronie dostawcy,
+      to jest to, co konkretna oferta bramki pokazuje właścicielom portfeli.
+    walletTransactions: 'Rejestr historii salda przeznaczony wyłącznie do dopisywania
+      - jeden wiersz jest zapisywany za każdym razem, gdy zmienia się saldo dowolnego
+      portfela (doładowanie, zakup, zwrot, korekta, przelew, realizacja karty podarunkowej,
+      zasilenie skarbca, opłata, chargeback), zawsze w tej samej transakcji bazodanowej
+      co sama aktualizacja salda, więc ta lista i bieżące saldo portfela nigdy nie
+      mogą się rozjechać. Tylko do odczytu: wpis rejestru nigdy nie jest edytowany
+      ani usuwany po utworzeniu - korekta to zawsze nowy, kompensujący wpis, nigdy
+      edycja starego. "Powód" (Reason) to rodzaj zdarzenia, które wygenerowało wiersz;
+      "Typ referencji"/"Id referencji" wskazują z powrotem na to, co go spowodowało
+      (próbę płatności, kartę podarunkową, skarbiec, inny portfel w przelewie, ...).'
+    wallets: Każdy portfel w systemie, dla każdego właściciela - portfel jest tworzony
+      dla użytkownika (ownerType "user"), przestrzeni roboczej (ownerType "workspace")
+      lub jednego konkretnego użytkownika przypisanego do jednej konkretnej przestrzeni
+      roboczej (ownerType "workspaceUser", np. aby karta podarunkowa ograniczona do
+      przestrzeni roboczej miała gdzie zostać zrealizowana). Saldo nigdy nie jest
+      edytowane bezpośrednio tutaj - zmienia się wyłącznie przez doładowanie, zakup,
+      przelew, realizację karty podarunkowej lub ekran "Koryguj saldo" (ręczna korekta
+      wsparcia/operacyjna, zawsze rejestrowana z notatką). "Zablokowany" (Frozen)
+      to silniejsza, dostępna tylko dla roota blokada ponad statusem - zatrzymuje
+      każdą zmianę salda niezależnie od statusu i można ją ustawić/zdjąć wyłącznie
+      z ekranu szczegółów portfela. Portfel można usunąć tylko wtedy, gdy ma zerowe
+      saldo i nigdy nie zarejestrował żadnej transakcji księgowej - w przeciwnym razie
+      zamknij go (status "closed").
+  prepaids:
+    amount: Kwota
+    amountHint: Wartość nominalna jako liczba dziesiętna w jednostkach podrzędnych
+      (np. centy dla USD) - zaliczana w całości przy realizacji, bez częściowej realizacji.
+    archiveTitle: Karty podarunkowe
+    currency: Waluta
+    editPrepaid: Edytuj kartę podarunkową
+    isExchangeable: Wymienialna
+    isExchangeableHint: Na razie tylko informacyjne - realizacja zawsze wymaga dokładnej
+      zgodności waluty, niezależnie od tej flagi.
+    locations: Lokalizacje
+    locationsHint: Tablica JSON kodów/nazw lokalizacji, w których można użyć tej karty,
+      np. ["store-1","store-2"]. Wyłącznie informacyjne.
+    metadata: Metadane
+    metadataHint: Dodatkowe dane strukturalne, np. identyfikator partii/kampanii.
+    newPrepaid: Nowa karta podarunkowa
+    redeemKey: Klucz realizacji
+    redeemKeyCreateHint: Pozostaw puste, aby automatycznie wygenerować bezpieczny
+      klucz.
+    redeemKeyHint: Generowany automatycznie, jeśli pozostawiony pusty. Nigdy nie edytuj
+      go po wydaniu karty.
+    redeemedAt: Data realizacji
+    redeemedWallet: Zrealizowano na portfel
+    selectTreasury: Wybierz skarbiec...
+    selectWorkspace: Wybierz przestrzeń roboczą...
+    status: Status
+    statusActive: Aktywna
+    statusDisabled: Wyłączona
+    statusRedeemed: Zrealizowana
+    treasury: Skarbiec zabezpieczający
+    treasuryHint: Gdy ustawiony, realizacja obciąża portfel powiązany z tym skarbcem
+      zamiast tworzyć nową wartość - zobacz opis encji skarbca.
+    treasuryTransaction: Wpis obciążenia skarbca
+    walletTransaction: Wpis w księdze
+    workspaceId: Przestrzeń robocza
+    workspaceIdHint: Gdy ustawione, tę kartę można zrealizować tylko na portfel przypisany
+      do tej konkretnej przestrzeni roboczej.
+  treasuries:
+    archiveTitle: Skarbce
+    balance: Saldo
+    currency: Waluta
+    description: Opis
+    editTreasury: Edytuj skarbiec
+    name: Nazwa
+    newTreasury: Nowy skarbiec
+    selectWallet: Wybierz portfel...
+    selectWalletHint: Musi już istnieć - skarbiec nigdy nie tworzy portfela inline,
+      tylko łączy się z istniejącym.
+    walletId: Portfel
+    walletLockedHint: Nie można zmienić po utworzeniu - środki mogły już przepłynąć
+      przez portfel tego skarbca.
+    walletStatus: Status portfela
+  walletConfigs:
+    allowUserCreateWallet: Zezwalaj użytkownikom na tworzenie własnego portfela
+    allowUserCreateWalletHint: Gdy wyłączone, tylko administrator może utworzyć portfel
+      dla użytkownika (adminCreateWallet).
+    defaultUserWallets: Domyślne portfele użytkownika
+    defaultUserWalletsHint: Waluty, w których automatycznie tworzony jest portfel
+      dla każdego nowego użytkownika, np. USD i IRR.
+    description: Limity i wartości domyślne portfela dostępne tylko dla root, wspólne
+      dla wszystkich przestrzeni roboczych.
+    editWalletConfig: Edytuj konfigurację portfela
+    limitsSectionDescription: Maksymalna liczba portfeli, jaką może mieć pojedynczy
+      użytkownik/przestrzeń robocza.
+    limitsSectionTitle: Limity portfeli
+    maxWalletsPerUser: Maks. portfeli na użytkownika
+    maxWalletsPerUserHint: 0 oznacza brak limitu.
+    maxWalletsPerUserPerCurrency: Maks. portfeli na użytkownika na walutę
+    maxWalletsPerUserPerCurrencyHint: Pozostaw puste, aby nie ustawiać dodatkowego
+      limitu na walutę.
+    maxWalletsPerWorkspace: Maks. portfeli na przestrzeń roboczą
+    maxWalletsPerWorkspaceHint: 0 oznacza brak limitu.
+    maxWalletsPerWorkspacePerCurrency: Maks. portfeli na przestrzeń roboczą na walutę
+    maxWalletsPerWorkspacePerCurrencyHint: Pozostaw puste, aby nie ustawiać dodatkowego
+      limitu na walutę.
+    selfServiceSectionDescription: Kontrola nad tym, co użytkownik może zrobić samodzielnie,
+      bez administratora.
+    selfServiceSectionTitle: Samoobsługa
+    title: Konfiguracja portfela
+  walletCurrencies:
+    archiveTitle: Waluty portfeli
+    code: Kod
+    codeHint: Np. USD, EUR, BTC. Musi być unikalny wśród wszystkich walut.
+    decimals: Miejsca dziesiętne
+    decimalsHint: Precyzja jednostki podrzędnej (np. 2 dla USD, 8 dla BTC).
+    editWalletCurrency: Edytuj walutę
+    isActive: Aktywna
+    isActiveHint: Czy obecnie można tworzyć portfele/doładowania w tej walucie.
+    kind: Rodzaj
+    kindCrypto: Kryptowaluta
+    kindFiat: Fiducjarna
+    name: Nazwa
+    newWalletCurrency: Nowa waluta
+    symbol: Symbol
+    symbolHint: Opcjonalny symbol wyświetlany, np. $ lub ₿.
+  walletEvents:
+    archiveTitle: Zdarzenia bramki portfela
+    eventType: Typ zdarzenia
+    externalEventId: Zewnętrzny identyfikator zdarzenia
+    gateway: Bramka
+    payload: Dane
+    processed: Przetworzone
+    processingError: Błąd przetwarzania
+    receivedAt: Odebrano
+    singleTitle: Zdarzenie bramki
+  walletGateways:
+    archiveTitle: Bramki płatnicze portfela
+    code: Kod
+    codeHint: Unikalny kod identyfikujący zarejestrowaną implementację GatewayAdapter.
+    config: Konfiguracja
+    configHint: Konfiguracja dostawcy - może zawierać wyłącznie odwołania do sekretów,
+      nigdy surowych kluczy API/sekretów webhooków.
+    editWalletGateway: Edytuj bramkę
+    isActive: Aktywna
+    kind: Rodzaj
+    name: Nazwa
+    newWalletGateway: Nowa bramka
+    supportedCurrencies: Obsługiwane waluty
+    supportedCurrenciesHint: Waluty, którymi właściciele portfeli mogą doładowywać
+      się przez tę bramkę.
+  walletPaymentAttempts:
+    amount: Kwota
+    archiveTitle: Próby płatności portfela
+    completedAt: Zakończono
+    createdAt: Data utworzenia
+    currency: Waluta
+    expiresAt: Wygasa
+    failureReason: Powód niepowodzenia
+    gateway: Bramka
+    gatewayReference: Odniesienie bramki
+    idempotencyKey: Klucz idempotencji
+    purpose: Cel
+    returnUrl: Adres powrotu
+    singleTitle: Próba płatności
+    status: Status
+    wallet: Portfel
+  walletProviderConfigs:
+    archiveTitle: Konfiguracje dostawców portfela
+    config: Konfiguracja
+    configHint: Ustawienia specyficzne dla dostawcy, niebędące sekretami.
+    editWalletProviderConfig: Edytuj konfigurację
+    isEnabled: Włączona
+    newWalletProviderConfig: Nowa konfiguracja
+    providerType: Typ dostawcy
+    providerTypeHint: Musi odpowiadać Code() zarejestrowanego adaptera, np. stripe,
+      przelewy24, blik, zarinpal.
+    region: Region
+    regionHint: Kod regionu w stylu ISO-3166 lub "global" dla wszystkich regionów.
+  walletTransactions:
+    amount: Kwota
+    archiveTitle: Transakcje portfela
+    balanceAfter: Saldo po
+    createdAt: Data utworzenia
+    createdBy: Utworzone przez
+    direction: Kierunek
+    idempotencyKey: Klucz idempotencji
+    note: Notatka
+    reason: Powód
+    referenceId: Identyfikator odniesienia
+    referenceType: Typ odniesienia
+    singleTitle: Transakcja
+    wallet: Portfel
+  wallets:
+    adjustBalanceDescription: Ręczna korekta salda przez wsparcie/operacje - przechodzi
+      przez tę samą blokowaną ścieżkę transakcyjną co zakup.
+    adjustBalanceNote: Notatka
+    adjustBalanceNoteHint: Wymagane - wyjaśnij powód tej korekty.
+    adjustBalanceSection: Korekta
+    adjustBalanceSubmit: Skoryguj saldo
+    adjustBalanceSubmitting: Korygowanie...
+    adjustBalanceSuccess: Saldo skorygowane.
+    adjustBalanceTitle: Korekta salda
+    amount: Kwota
+    amountHint: Dodatnia liczba dziesiętna w jednostkach podrzędnych (np. centy dla
+      USD).
+    archiveTitle: Portfele
+    balance: Saldo
+    currency: Waluta
+    currencyHint: Musi odpowiadać aktywnej walucie.
+    direction: Kierunek
+    directionCredit: Uznanie
+    directionDebit: Obciążenie
+    label: Etykieta
+    labelHint: Opcjonalny pseudonim tego portfela.
+    newWallet: Nowy portfel
+    owner: Właściciel
+    ownerType: Typ właściciela
+    ownerTypeHint: Czy ten portfel należy do użytkownika, czy do przestrzeni roboczej.
+    ownerUser: Użytkownik
+    ownerWorkspace: Przestrzeń robocza
+    ownerWorkspaceUser: Użytkownik w przestrzeni roboczej
+    selectCurrency: Wybierz walutę...
+    selectUser: Wybierz użytkownika...
+    selectWallet: Wybierz portfel...
+    selectWorkspace: Wybierz przestrzeń roboczą...
+    status: Status
+    user: Użytkownik
+    wallet: Portfel
+    workspace: Przestrzeń robocza
+    workspaceUserHint: Portfel będzie należał do tego użytkownika, tylko w ramach
+      tej przestrzeni roboczej.

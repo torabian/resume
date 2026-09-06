@@ -1,0 +1,16 @@
+{
+  "name": "@fireback/walletpublic",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Owner-facing wallet interface: list your own wallets, view transaction history, top up.",
+  "dependencies": {
+    "@fireback/js-remote-ctx": "*",
+    "@fireback/overlay": "*",
+    "formik": "^2.2.9"
+  },
+  "peerDependencies": {
+    "react": "19",
+    "react-router-dom": "^6.9.0",
+    "@tanstack/react-query": "^5.101.4"
+  }
+}

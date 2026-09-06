@@ -1,0 +1,26 @@
+description: >
+  Contains set of complexes which are commonly used. Reference this file, in
+  the first complex in a module, and it will preprocess it. Same file/shape
+  as ../../../nima/modules/definitions/complexes.emi.yml.
+complexes:
+  - compiler: go
+    location: github.com/torabian/fireback/modules/fireback/complexes
+    name: TString
+    namespace: complexes
+  - compiler: ts
+    location: '@fireback/complexes'
+    name: TString
+  - compiler: go
+    location: github.com/torabian/fireback/modules/fireback/complexes
+    name: XDate
+    namespace: complexes
+  - compiler: ts
+    location: '@fireback/complexes'
+    name: XDate
+  - compiler: go
+    name: ComplexFile
+    location: github.com/torabian/fireback/modules/storage
+    namespace: storage
+  - compiler: ts
+    name: ComplexFile
+    location: '@fireback/resumable-uploader'

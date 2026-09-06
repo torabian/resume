@@ -1,0 +1,131 @@
+package main
+
+// Sidebar entries for the 8 VirtualEntityManager screens wired in
+// ui/src/apps/manage/ApplicationRoutes.tsx (ResumeRoutes.tsx,
+// CompanyRoutes.tsx, WorkExperienceRoutes.tsx, EducationRoutes.tsx,
+// SkillRoutes.tsx, ProjectRoutes.tsx, CertificationRoutes.tsx,
+// LanguageRoutes.tsx). Same shape as ../../nima/modules/musicalwork/
+// MusicalWorkModule.go's MusicWorkMenu()/*Menu.go files: one parent group
+// entity (no Href, just a label to nest under) plus one child per screen,
+// linked via ParentId.
+//
+// Hrefs are root-level ("/profiles", not "/manage/profiles") because
+// ApplicationRoutes.tsx passes each entity's routes straight into
+// FirebackEssentialRouterManager without nima/abac's own "manage" path
+// wrapper (see ResumeRoutes.tsx's own doc comment on the "profile" slug,
+// and createEntityNavigation.ts's Rquery == pluralSlug) - so the child
+// hrefs below are just "/" + each *Routes.tsx's own pluralSlug.
+//
+// CapabilityId is left unset on every entry: unlike nima's modules, this
+// module has no Permissions.go/abac permission checks yet (see
+// ResumeModule.go's own doc comment), so there's no capability id to
+// require here - every entry is visible to anyone who can see the sidebar
+// at all.
+//
+// This file lives in cmd/ (package main) rather than under modules/resume
+// the way musicalwork's own *Menu.go files do, since modules/resume has no
+// dependency on interfacetoolsdefs/abac today (see ResumeModule.go) and
+// this wiring is purely for main.go's own xapp - see resumeExtraAppMenus's
+// call site in main.go.
+import (
+	"github.com/torabian/emi/emigo"
+	interfacetoolsdefs "github.com/torabian/fireback/modules/abac/interfacetools/defs"
+	"github.com/torabian/fireback/modules/fireback/complexes"
+)
+
+// resumeMenus returns the "Resume" sidebar group and its 8 entity screens.
+func resumeMenus() []*interfacetoolsdefs.AppMenuEntity {
+	group := &interfacetoolsdefs.AppMenuEntity{
+		UniqueId: "resume-sections",
+		Label: complexes.TStringFrom(map[string]string{
+			"en": "Resume",
+		}),
+		Icon: "/common/product.svg",
+	}
+
+	entries := []*interfacetoolsdefs.AppMenuEntity{
+		group,
+		{
+			UniqueId: "resume-sections-profiles",
+			Label: complexes.TStringFrom(map[string]string{
+				"en": "Resumes",
+			}),
+			Href:          "/profiles",
+			Icon:          "/common/entity-default.svg",
+			ActiveMatcher: "profiles",
+			ParentId:      emigo.NullableOf(group.UniqueId),
+		},
+		{
+			UniqueId: "resume-sections-companies",
+			Label: complexes.TStringFrom(map[string]string{
+				"en": "Companies",
+			}),
+			Href:          "/companies",
+			Icon:          "/common/entity-default.svg",
+			ActiveMatcher: "companies",
+			ParentId:      emigo.NullableOf(group.UniqueId),
+		},
+		{
+			UniqueId: "resume-sections-work-experiences",
+			Label: complexes.TStringFrom(map[string]string{
+				"en": "Work experience",
+			}),
+			Href:          "/work-experiences",
+			Icon:          "/common/entity-default.svg",
+			ActiveMatcher: "work-experiences",
+			ParentId:      emigo.NullableOf(group.UniqueId),
+		},
+		{
+			UniqueId: "resume-sections-educations",
+			Label: complexes.TStringFrom(map[string]string{
+				"en": "Education",
+			}),
+			Href:          "/educations",
+			Icon:          "/common/entity-default.svg",
+			ActiveMatcher: "educations",
+			ParentId:      emigo.NullableOf(group.UniqueId),
+		},
+		{
+			UniqueId: "resume-sections-skills",
+			Label: complexes.TStringFrom(map[string]string{
+				"en": "Skills",
+			}),
+			Href:          "/skills",
+			Icon:          "/common/entity-default.svg",
+			ActiveMatcher: "skills",
+			ParentId:      emigo.NullableOf(group.UniqueId),
+		},
+		{
+			UniqueId: "resume-sections-projects",
+			Label: complexes.TStringFrom(map[string]string{
+				"en": "Projects",
+			}),
+			Href:          "/projects",
+			Icon:          "/common/entity-default.svg",
+			ActiveMatcher: "projects",
+			ParentId:      emigo.NullableOf(group.UniqueId),
+		},
+		{
+			UniqueId: "resume-sections-certifications",
+			Label: complexes.TStringFrom(map[string]string{
+				"en": "Certifications",
+			}),
+			Href:          "/certifications",
+			Icon:          "/common/entity-default.svg",
+			ActiveMatcher: "certifications",
+			ParentId:      emigo.NullableOf(group.UniqueId),
+		},
+		{
+			UniqueId: "resume-sections-languages",
+			Label: complexes.TStringFrom(map[string]string{
+				"en": "Languages",
+			}),
+			Href:          "/languages",
+			Icon:          "/common/entity-default.svg",
+			ActiveMatcher: "languages",
+			ParentId:      emigo.NullableOf(group.UniqueId),
+		},
+	}
+
+	return entries
+}

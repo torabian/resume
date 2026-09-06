@@ -1,0 +1,8 @@
+content:
+  notifications:
+    title: اعلان‌ها
+    empty: شما هیچ اعلانی ندارید.
+    markAsRead: علامت‌گذاری به عنوان خوانده‌شده
+    unreadBadge: خوانده‌نشده
+    markedAsRead: اعلان به عنوان خوانده‌شده علامت‌گذاری شد.
+    loadError: اعلان‌های شما بارگذاری نشد.

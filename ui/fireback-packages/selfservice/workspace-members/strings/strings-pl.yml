@@ -1,0 +1,17 @@
+content:
+  menuTitle: Członkowie
+  member:
+    name: Imię i nazwisko
+    role: Rola
+    actions: Akcje
+    changeRole: Zmień rolę
+    remove: Usuń
+    removeConfirmTitle: Usuń członka
+    removeConfirmDescription: Czy na pewno chcesz usunąć tego członka z przestrzeni
+      roboczej? Straci on natychmiastowy dostęp.
+    removeSuccess: Członek usunięty.
+    changeRoleTitle: Zmień rolę
+    changeRoleHint: Wybierz nową rolę do przypisania temu członkowi.
+    changeRoleLabel: Rola
+    changeRoleSuccess: Rola zaktualizowana.
+    cannotRemoveSelf: Nie możesz usunąć własnego członkostwa z tej przestrzeni roboczej.

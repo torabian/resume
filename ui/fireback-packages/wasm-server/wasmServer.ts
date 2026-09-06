@@ -1,0 +1,410 @@
+// wasmServer — downloads a fireback server compiled to wasm
+// (cmd/fireback-wasm, `make wasm`) and boots it in the browser, then exposes
+// a fetch-compatible bridge to it. TS port of the loader inlined in the emi
+// in-browser-server example's browser/main.js, extracted into a reusable
+// function per fireback's own request.
+//
+// Usage:
+//
+//   import { startWasmServer, wasmFetchOverride } from "@fireback/wasm-server/wasmServer";
+//   import { FetchxContext } from "@fireback/js-remote-ctx/common/fetchx";
+//
+//   await startWasmServer(); // downloads + boots wasm_exec.js, the .wasm, and pglite
+//   const ctx = new FetchxContext("", {}, undefined, undefined, wasmFetchOverride());
+//   // every fetchx(url, init, ctx) call now lands on the in-browser Go server
+//
+// Most apps won't call this directly — see WithWasmServer.tsx for the
+// component that gates rendering on boot completing, driven by the
+// VITE_USE_WASM_SERVER build variable.
+import { installPgliteBridge } from "./pgliteBridge";
+import type { TypedRequestInit } from "@fireback/js-remote-ctx/common/fetchx";
+
+declare global {
+  interface Window {
+    // Installed by wasm_exec.js.
+    Go?: new () => GoInstance;
+    // Installed by emigo.LiftWasmServer (cmd/fireback-wasm/main.go), once
+    // the Go module's main() has run.
+    handleWasmRequest?: (
+      method: string,
+      url: string,
+      body: string,
+      headersJSON: string,
+    ) => Promise<string>;
+    // Read once, synchronously, by main()'s applyEnvFromJs
+    // (cmd/fireback-wasm/main.go) before it calls any module's
+    // LoadConfiguration() - see startWasmServer's `env` option below. Must be
+    // set before go.run() runs, same requirement as window.queryDatabase.
+    firebackEnv?: Record<string, string>;
+    // Installed by bootWasmServer below, right before go.run(). main()
+    // (cmd/fireback-wasm/main.go's reportBootStage) calls this once per boot
+    // phase (DB connect, each AutoMigrate pass, ...) so the UI has something
+    // to show during the otherwise-silent stretch between the wasm binary
+    // finishing its download and window.handleWasmRequest becoming callable.
+    // Entirely optional from Go's side - it no-ops if this is undefined.
+    __firebackWasmBootStage?: (stage: string) => void;
+  }
+}
+
+// Every stage either side of the bridge might report, in the order a normal
+// boot passes through them - see onWasmBootStage below for how a caller
+// gets these, and WithWasmServer.tsx's DefaultBootingScreen for the default
+// UI built on top of them. "downloading" and "instantiating" bracket
+// WebAssembly.instantiateStreaming - "downloading" overlaps
+// onWasmDownloadProgress's byte-level detail, "instantiating" is the (brief,
+// unmeasured) compile step between the download finishing and go.run()
+// starting. Everything from "connecting-database" onward is reported by Go
+// itself (main()'s reportBootStage) once it's actually running, which is
+// also why this list can't be exhaustive forever: a wasm binary built
+// before some future stage was added just never reports it, and a UI
+// consuming this should treat unknown/missing stages as "still booting"
+// rather than erroring.
+export type WasmBootStage =
+  | "installing-database"
+  | "loading-runtime"
+  | "downloading"
+  | "instantiating"
+  | "connecting-database"
+  // Reported instead of "migrating-core"/"migrating-interface-tools" when
+  // main() finds a migration already completed successfully within the
+  // last hour (see cmd/fireback-wasm/main.go's migrationSkipWindow) and
+  // skips both AutoMigrate passes entirely - a plain page refresh's common
+  // case, and the whole reason this stage exists: it's what makes that path
+  // visibly faster instead of just silently different.
+  | "up-to-date"
+  | "migrating-core"
+  | "migrating-interface-tools"
+  | "ready";
+
+type BootStageListener = (stage: WasmBootStage) => void;
+
+const bootStageListeners = new Set<BootStageListener>();
+let lastBootStage: WasmBootStage | null = null;
+
+function emitBootStage(stage: WasmBootStage): void {
+  lastBootStage = stage;
+  for (const listener of bootStageListeners) listener(stage);
+}
+
+/**
+ * Subscribe to boot-stage changes (see WasmBootStage). Same late-subscriber
+ * behavior as onWasmDownloadProgress - a listener added after boot already
+ * started is replayed the most recent stage immediately, then gets live
+ * updates same as everyone else. Returns an unsubscribe function.
+ */
+export function onWasmBootStage(listener: BootStageListener): () => void {
+  bootStageListeners.add(listener);
+  if (lastBootStage) listener(lastBootStage);
+  return () => {
+    bootStageListeners.delete(listener);
+  };
+}
+
+interface GoInstance {
+  importObject: WebAssembly.Imports;
+  run(instance: WebAssembly.Instance): Promise<void>;
+}
+
+/** Byte progress of the .wasm download. `total` is null when the server didn't send a Content-Length (progress is still meaningful — just show bytes loaded, not a percentage). */
+export interface WasmDownloadProgress {
+  loaded: number;
+  total: number | null;
+}
+
+type ProgressListener = (progress: WasmDownloadProgress) => void;
+
+const progressListeners = new Set<ProgressListener>();
+let lastProgress: WasmDownloadProgress | null = null;
+
+function emitProgress(progress: WasmDownloadProgress): void {
+  lastProgress = progress;
+  for (const listener of progressListeners) listener(progress);
+}
+
+/**
+ * Subscribe to .wasm download progress. Independent of who actually calls
+ * startWasmServer — a late subscriber (e.g. a second component mounting
+ * useWasmServer after boot already started) is replayed the most recent
+ * progress immediately, then gets live updates same as everyone else.
+ * Returns an unsubscribe function.
+ */
+export function onWasmDownloadProgress(listener: ProgressListener): () => void {
+  progressListeners.add(listener);
+  if (lastProgress) listener(lastProgress);
+  return () => {
+    progressListeners.delete(listener);
+  };
+}
+
+export interface WasmServerOptions {
+  /** Where to fetch the compiled server from. Default "/fireback.wasm". */
+  wasmUrl?: string;
+  /** Where to fetch Go's wasm runtime glue from. Default "/wasm_exec.js" — `make wasm` (or `cp $(go env GOROOT)/lib/wasm/wasm_exec.js ui/public/`) puts it in ui/public, which Vite serves at the site root unmodified. */
+  wasmExecUrl?: string;
+  /**
+   * Storage location for the in-browser Postgres. Default persists across
+   * reloads via IndexedDB — see installPgliteBridge.
+   */
+  pgliteDataDir?: string;
+  /**
+   * Skip installing the pglite-backed window.queryDatabase bridge, e.g. if
+   * the caller wired up its own (or the wasm binary doesn't touch a
+   * database at all). Default false.
+   */
+  skipDatabaseBridge?: boolean;
+  /**
+   * Env vars to seed the wasm module's config from - every module's
+   * generated LoadConfiguration() reads these exactly like it would read
+   * real process env vars on a non-wasm build (see emigo.HandleEnvVars's
+   * wasm implementation, ConfigWasm.go, and applyEnvFromJs in
+   * cmd/fireback-wasm/main.go). Typically whatever subset of the host
+   * page's own build-time env (e.g. Vite's import.meta.env) the wasm build
+   * needs at runtime - keys are the same envconfig names the CLI/.env file
+   * would use (SELF_SERVICE_BASE_URL, STORAGE, ...), see each module's own
+   * `config:` block (or `fireback config list`) for the full set. Omit to
+   * leave every field at its generated hardcoded default.
+   */
+  env?: Record<string, string>;
+}
+
+let bootPromise: Promise<void> | null = null;
+
+/**
+ * Fetches wasm_exec.js (if window.Go isn't already defined) and the compiled
+ * server binary, instantiates and starts it, wires up the pglite database
+ * bridge it expects, and resolves once window.handleWasmRequest is live.
+ * Safe to call more than once — later calls just await the first boot.
+ */
+export function startWasmServer(opts: WasmServerOptions = {}): Promise<void> {
+  if (!bootPromise) {
+    bootPromise = bootWasmServer(opts)
+      .catch((err) => {
+        // Let a failed boot be retried instead of permanently wedging every
+        // future caller on the same rejected promise.
+        bootPromise = null;
+        throw err;
+      })
+      .then();
+  }
+  return bootPromise;
+}
+
+async function bootWasmServer(opts: WasmServerOptions): Promise<void> {
+  const wasmUrl = opts.wasmUrl ?? "/fireback.wasm";
+  const wasmExecUrl = opts.wasmExecUrl ?? "/wasm_exec.js";
+
+  // Go's main() (cmd/fireback-wasm/main.go) reads window.queryDatabase
+  // synchronously at startup and bails if it's missing, so this has to be
+  // in place before go.run() below.
+  if (!opts.skipDatabaseBridge) {
+    emitBootStage("installing-database");
+    await installPgliteBridge(opts.pgliteDataDir);
+  }
+
+  emitBootStage("loading-runtime");
+  await loadWasmExec(wasmExecUrl);
+
+  // Go's main() (cmd/fireback-wasm/main.go) reads window.firebackEnv
+  // synchronously at startup too, same requirement as window.queryDatabase
+  // above - has to be in place before go.run() below. Always set (even to
+  // {}) so a second startWasmServer() call with a different `env` doesn't
+  // leave a previous call's values behind.
+  window.firebackEnv = opts.env ?? {};
+
+  // Installed before go.run() below (not after - it never returns) so every
+  // stage main() reports via reportBootStage (DB connect, each migration
+  // pass, ...) reaches subscribers. Reinstalled per boot for the same
+  // "don't leave a previous call's state behind" reason as firebackEnv
+  // above, though in practice only the first boot's install ever matters -
+  // startWasmServer memoizes to a single shared boot.
+  window.__firebackWasmBootStage = (stage: string) => {
+    emitBootStage(stage as WasmBootStage);
+  };
+
+  emitBootStage("downloading");
+  const go = new window.Go!();
+  const { instance } = await WebAssembly.instantiateStreaming(
+    fetchWasmWithProgress(wasmUrl),
+    go.importObject,
+  );
+
+  emitBootStage("instantiating");
+
+  // Deliberately not awaited: main() blocks on `select {}` forever so the
+  // exposed callback stays callable. Awaiting here would hang startup.
+  void go.run(instance);
+
+  await waitFor(() => typeof window.handleWasmRequest === "function");
+
+  // Belt-and-suspenders for a wasm binary built before reportBootStage
+  // existed (or any future stage this side doesn't recognize yet): Go's own
+  // "ready" report races this resolving (LiftWasmServer installs
+  // window.handleWasmRequest synchronously, right before reportBootStage
+  // fires - see main()'s own comment there), so this is normally a no-op
+  // repeat, not the first time "ready" is seen.
+  emitBootStage("ready");
+}
+
+// Wraps fetch(url) so every chunk of the (typically tens-of-MB) .wasm
+// download is reported via onWasmDownloadProgress, while still handing
+// WebAssembly.instantiateStreaming a real streamed Response — the fetch
+// itself, and streaming compilation off it, keep running exactly as before,
+// this just taps the byte stream as it passes through.
+function fetchWasmWithProgress(url: string): Promise<Response> {
+  return fetch(url).then((res) => {
+    if (!res.ok || !res.body) {
+      emitProgress({ loaded: 0, total: null });
+      return res;
+    }
+
+    const totalHeader = res.headers.get("content-length");
+    const total = totalHeader ? Number(totalHeader) : null;
+    let loaded = 0;
+
+    const reader = res.body.getReader();
+    const stream = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        const { done, value } = await reader.read();
+        if (done) {
+          controller.close();
+          return;
+        }
+        loaded += value.byteLength;
+        emitProgress({ loaded, total });
+        controller.enqueue(value);
+      },
+      cancel(reason) {
+        reader.cancel(reason);
+      },
+    });
+
+    // Rebuild a Response around the tapped stream. Passing the original
+    // res.headers through keeps Content-Type: application/wasm intact,
+    // which instantiateStreaming needs to accept it as a streaming compile
+    // rather than falling back to buffering the whole thing first.
+    return new Response(stream, {
+      status: res.status,
+      statusText: res.statusText,
+      headers: res.headers,
+    });
+  });
+}
+
+function loadWasmExec(url: string): Promise<void> {
+  if (typeof window.Go === "function") return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = url;
+    script.onload = () => resolve();
+    script.onerror = () =>
+      reject(new Error(`wasmServer: failed to load ${url}`));
+    document.head.appendChild(script);
+  });
+}
+
+function waitFor(predicate: () => boolean, intervalMs = 20): Promise<void> {
+  return new Promise((resolve) => {
+    const tick = () => {
+      if (predicate()) return resolve();
+      setTimeout(tick, intervalMs);
+    };
+    tick();
+  });
+}
+
+/**
+ * A drop-in fetch replacement backed by the in-browser Go server (see
+ * emigo.LiftWasmServer in cmd/fireback-wasm/main.go): it turns the call into
+ * a real *http.Request, runs it through the server's mux, and hands back a
+ * genuine Response — callers, including generated SDK actions, can't tell
+ * it isn't a network round trip.
+ *
+ * Requires startWasmServer() to have resolved first.
+ */
+export async function wasmFetch(
+  url: string,
+  init: TypedRequestInit = {},
+): Promise<Response> {
+  if (typeof window.handleWasmRequest !== "function") {
+    throw new Error(
+      "wasmServer: window.handleWasmRequest is not defined yet — call and await startWasmServer() first",
+    );
+  }
+
+  const body =
+    typeof init.body === "string"
+      ? init.body
+      : init.body !== undefined
+        ? JSON.stringify(init.body)
+        : "";
+
+  console.log(
+    "WASM ->",
+    init.method || "GET",
+    url,
+    body,
+    JSON.stringify(init.headers || {}),
+  );
+
+  let raw: string;
+  try {
+    console.log(0);
+    raw = await window.handleWasmRequest(
+      init.method || "GET",
+      url,
+      body,
+      JSON.stringify(init.headers || {}),
+    );
+
+    console.log(1);
+  } catch (err) {
+    console.log(2);
+    // window.handleWasmRequest's Promise only ever rejects on an unrecovered
+    // panic in the Go handler goroutine (see emigo.LiftWasmServer's own
+    // recover()) - it settles with a plain string, not an Error, since
+    // that's all js.Value.Invoke can carry across the bridge. Real fetch()
+    // rejects with a TypeError for the equivalent "request never got a
+    // response" case (a network failure), so wrap it the same way here -
+    // callers that do `catch (err) { ... err.message ... }` or check
+    // `err instanceof Error`, same as they would for a real fetch() failure,
+    // get that instead of a bare string.
+    throw new TypeError(
+      `wasmServer: in-browser server failed to handle ${init.method || "GET"} ${url}: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
+  }
+
+  const {
+    status,
+    headers,
+    body: resBody,
+  } = JSON.parse(raw) as {
+    status: number;
+    headers: Record<string, string[]>;
+    body: string;
+  };
+
+  const h = new Headers();
+  for (const [k, vs] of Object.entries(headers || {})) {
+    for (const v of vs) h.append(k, v);
+  }
+
+  console.log("WASM", url, resBody, status, headers);
+  return new Response(resBody, { status, headers: h });
+}
+
+/**
+ * fetchOverrideFn for FetchxContext (see @fireback/js-remote-ctx's
+ * common/fetchx.ts) that routes through wasmFetch. Plug it into a
+ * FetchxContext and every fetchx() call against that context lands on the
+ * in-browser server instead of the network:
+ *
+ *   const ctx = new FetchxContext("", {}, undefined, undefined, wasmFetchOverride());
+ */
+export function wasmFetchOverride() {
+  return (
+    input: RequestInfo | URL,
+    init?: TypedRequestInit,
+  ): Promise<Response> => wasmFetch(input.toString(), init);
+}

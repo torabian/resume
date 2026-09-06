@@ -1,0 +1,322 @@
+name: resume
+description: |
+  Resume module - stores a resume structurally in the database so it can be
+  edited via CRUD and later rendered into PDF/LaTeX (or any other format).
+
+  Layout: `Resume` is the root aggregate holding profile-level info (name,
+  headline, summary, contact details). Every resume section is its own
+  top-level entity (Company, WorkExperience, Education, Skill, Project,
+  Certification, Language) so each has full CRUD/CLI/HTTP generated for it
+  and can be edited independently.
+
+  Ownership is modeled child -> parent: each section entity carries a
+  `resume: one target: ResumeEntity` field (its ResumeId foreign key), so a
+  resume's sections are fetched with Browse filtered by resumeId rather than
+  through a many-to-many `collection` field on Resume itself (a resume "has
+  many" work experiences, it doesn't share them with other resumes).
+
+  Company is the one exception: it's a standalone reusable entity (the same
+  employer can back multiple WorkExperience rows, even across resumes), so
+  WorkExperience links to it via `company: one? target: CompanyEntity`.
+
+  Translatable fields: any free-text *content* field (a title, a summary, a
+  description, a location) is `complex(?): TString` (see
+  ../definitions/complexes.emi.yml) - a locale -> value map, so one Resume
+  row can carry both an English and a Persian rendering of the same field
+  instead of needing a whole separate resume per language. Proper
+  nouns/identifiers (a person's fullName, a company's legal name, a skill or
+  project's own name, an institution, urls/emails/ids/dates, enums) stay
+  plain `string(?)` - they aren't translated, they're the same value in
+  every language. String *slices* (achievements, technologies, highlights)
+  are left alone too, even where individual bullets are genuinely
+  translatable prose - TString has no array counterpart here without a
+  bigger structural change (each item becoming its own array/collection
+  child row) than this pass covers.
+
+targets:
+  # Same shape as ../../../nima/modules/score/Score.emi.yml's own js target
+  # (the one that actually has real generated output committed, unlike
+  # category/entitlement's stale `../../../ui/src/sdk`, `admin/src/modules/...`
+  # targets - `admin/` doesn't even exist in nima anymore, and the extra `../`
+  # would resolve outside the repo entirely - see emi's target.Output
+  # resolution, path.Join(path.Dir(--path), target.Output), in
+  # lib/gorunner/emi-compile.go). no-sdk/no-package + js-sdk-location point
+  # every generated file at the shared @fireback/js-remote-ctx runtime
+  # (ui/fireback-packages/js-remote-ctx) instead of vendoring its own copy.
+  - compiler: js
+    output: ../../ui/src/modules/resume/sdk
+    tags:
+      - typescript
+      - react
+      # json-schema: emits each Dto's static JsonSchema/SchemaLocales -
+      # needed by ui/src/components/entity-manager/VirtualEntityManager
+      # (see e.g. ../../../nima/modules/musicalwork/MusicalWork.emi.yml's
+      # identical tag + ui/src/modules/musicalwork/*Routes.tsx).
+      - json-schema
+      - no-sdk
+      - no-package
+    flags:
+      js-sdk-location: '@fireback/js-remote-ctx'
+  - compiler: go
+    output: ./defs
+    flags:
+      pkg: resumedefs
+  - compiler: preprocessor
+    output: .
+
+complexes:
+  - include: ../definitions/complexes.emi.yml
+
+entities:
+  # Standalone, reusable across WorkExperience rows (and across resumes) -
+  # deliberately not owned by a single Resume.
+  - name: company
+    description: An employer. Reusable across work experiences and resumes.
+    fields:
+      # Legal/brand name - deliberately plain string, not TString: a
+      # company's name isn't translated (Vaillant GmbH stays "Vaillant GmbH"
+      # in every locale).
+      - name: name
+        type: string
+      - name: industry
+        type: complex?
+        complex: TString
+      - name: website
+        type: string?
+      - name: logoUrl
+        type: string?
+      - name: location
+        type: complex?
+        complex: TString
+      - name: description
+        type: complex?
+        complex: TString
+
+  - name: resume
+    description: >
+      Root aggregate for a single resume/CV. Sections (work experience,
+      education, skills, projects, certifications, languages) are separate
+      entities that reference this one via a `resume: one` field.
+    fields:
+      # A person's own name - deliberately plain string, not TString: it
+      # isn't translated (it's a proper noun, spelled the same everywhere
+      # the caller chooses to render it).
+      - name: fullName
+        type: string
+      - name: headline
+        type: complex?
+        complex: TString
+        description: Short title under the name, e.g. "Senior Backend Engineer"
+      - name: summary
+        type: complex?
+        complex: TString
+        description: Longer professional summary / objective paragraph.
+      - name: email
+        type: string?
+      - name: phone
+        type: string?
+      - name: location
+        type: complex?
+        complex: TString
+      - name: website
+        type: string?
+      - name: linkedin
+        type: string?
+      - name: github
+        type: string?
+      - name: photoUrl
+        type: string?
+      - name: language
+        type: string?
+        description: Language the resume content itself is written in, e.g. "en".
+      - name: isPrimary
+        type: bool?
+        description: Marks the default resume when a user keeps several variants.
+
+  - name: workExperience
+    description: A single employment period, linked to a Company and a Resume.
+    fields:
+      - name: resume
+        type: one
+        target: ResumeEntity
+      - name: company
+        type: one?
+        target: CompanyEntity
+      - name: jobTitle
+        type: complex
+        complex: TString
+      - name: employmentType
+        type: enum?
+        of:
+          - k: fullTime
+          - k: partTime
+          - k: contract
+          - k: internship
+          - k: freelance
+      - name: location
+        type: complex?
+        complex: TString
+      - name: remote
+        type: bool?
+      - name: startDate
+        type: string
+        description: ISO-8601 date, e.g. "2021-03-01".
+      - name: endDate
+        type: string?
+        description: ISO-8601 date. Empty/omitted when isCurrent is true.
+      - name: isCurrent
+        type: bool?
+      - name: summary
+        type: complex?
+        complex: TString
+      # Bullet points describing impact/responsibilities. Left a plain
+      # string slice rather than an array of TString - emi's `array` type
+      # models a real has-many child struct, a bigger structural change
+      # than this pass's scope (see Resume.emi.yml's top-of-file note under
+      # "Translatable fields"). Revisit if per-bullet translation is
+      # actually needed.
+      - name: achievements
+        type: slice?
+        primitive: string
+
+  - name: education
+    description: A single degree/program, linked to a Resume.
+    fields:
+      - name: resume
+        type: one
+        target: ResumeEntity
+      # An institution's own name - proper noun, not translated.
+      - name: institution
+        type: string
+      - name: degree
+        type: complex?
+        complex: TString
+        description: e.g. "B.Sc.", "M.Sc.", "Bootcamp certificate".
+      - name: fieldOfStudy
+        type: complex?
+        complex: TString
+      - name: location
+        type: complex?
+        complex: TString
+      - name: startDate
+        type: string?
+      - name: endDate
+        type: string?
+      - name: isCurrent
+        type: bool?
+      - name: grade
+        type: string?
+      - name: description
+        type: complex?
+        complex: TString
+
+  - name: skill
+    description: A single skill/technology entry, linked to a Resume.
+    fields:
+      - name: resume
+        type: one
+        target: ResumeEntity
+      # A skill/technology's own name (e.g. "Go", "React") - not translated.
+      - name: name
+        type: string
+      - name: category
+        type: enum?
+        of:
+          - k: language
+          - k: framework
+          - k: database
+          - k: protocol
+          - k: tool
+          - k: platform
+          - k: softSkill
+          - k: other
+      - name: level
+        type: enum?
+        of:
+          - k: beginner
+          - k: intermediate
+          - k: advanced
+          - k: expert
+      - name: yearsOfExperience
+        type: int?
+      - name: description
+        type: complex?
+        complex: TString
+        description: Longer free-text elaboration on the skill, if any.
+
+  - name: project
+    description: A portfolio/side/work project entry, linked to a Resume.
+    fields:
+      - name: resume
+        type: one
+        target: ResumeEntity
+      # A project's own name - proper noun, not translated.
+      - name: name
+        type: string
+      - name: role
+        type: complex?
+        complex: TString
+      - name: summary
+        type: complex?
+        complex: TString
+      - name: startDate
+        type: string?
+      - name: endDate
+        type: string?
+      - name: isOngoing
+        type: bool?
+      - name: url
+        type: string?
+      - name: repoUrl
+        type: string?
+      - name: technologies
+        type: slice?
+        primitive: string
+      - name: highlights
+        type: slice?
+        primitive: string
+
+  - name: certification
+    description: A certification/license entry, linked to a Resume.
+    fields:
+      - name: resume
+        type: one
+        target: ResumeEntity
+      # Unlike the other entities' `name`, a certification's name is
+      # descriptive prose ("C and C+E driving license") rather than a fixed
+      # proper noun, so it's translatable.
+      - name: name
+        type: complex
+        complex: TString
+      # The issuing organization's own name - proper noun, not translated.
+      - name: issuingOrganization
+        type: string?
+      - name: issueDate
+        type: string?
+      - name: expirationDate
+        type: string?
+      - name: credentialId
+        type: string?
+      - name: credentialUrl
+        type: string?
+
+  - name: language
+    description: A spoken/written language proficiency entry, linked to a Resume.
+    fields:
+      - name: resume
+        type: one
+        target: ResumeEntity
+      # The language's own display name (e.g. "Persian (Farsi)") -
+      # translatable, unlike every other entity's `name`: a Persian reader
+      # should see "فارسی", not the English word "Persian".
+      - name: name
+        type: complex
+        complex: TString
+      - name: proficiency
+        type: enum?
+        of:
+          - k: elementary
+          - k: limitedWorking
+          - k: professionalWorking
+          - k: fullProfessional
+          - k: nativeOrBilingual

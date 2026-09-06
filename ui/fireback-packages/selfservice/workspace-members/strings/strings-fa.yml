@@ -1,0 +1,17 @@
+content:
+  menuTitle: اعضا
+  member:
+    name: نام
+    role: نقش
+    actions: عملیات
+    changeRole: تغییر نقش
+    remove: حذف
+    removeConfirmTitle: حذف عضو
+    removeConfirmDescription: آیا مطمئن هستید که می‌خواهید این عضو را از فضای کاری
+      حذف کنید؟ او بلافاصله دسترسی خود را از دست می‌دهد.
+    removeSuccess: عضو حذف شد.
+    changeRoleTitle: تغییر نقش
+    changeRoleHint: نقش جدیدی را که می‌خواهید به این عضو اختصاص دهید انتخاب کنید.
+    changeRoleLabel: نقش
+    changeRoleSuccess: نقش به‌روزرسانی شد.
+    cannotRemoveSelf: شما نمی‌توانید عضویت خود را از این فضای کاری حذف کنید.

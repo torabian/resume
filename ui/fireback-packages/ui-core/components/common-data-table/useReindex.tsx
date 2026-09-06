@@ -1,0 +1,56 @@
+import { useEffect, useRef, useState } from "react";
+import { type Udf } from "../../hooks/useDatatableFiltering";
+import { uniqBy } from "lodash";
+
+export function useReindexedContent(udf: Udf) {
+  const previousQuery = useRef<any>();
+  let [indexedData, setIndexedData] = useState<Array<any>>([]);
+
+  // Keep a uniqueid reference to make sure no duplicates will ever be shown in case
+  // of another mistake somewhere else.
+  const keyref = useRef<any>({});
+  const reindex = (
+    rows: Array<any>,
+    jsonQueryKey: string,
+    onKeyChange?: () => void,
+  ) => {
+    if (jsonQueryKey === previousQuery.current) {
+      const toAdd = rows.filter((row) => {
+        if (!keyref.current[row.uniqueId]) {
+          keyref.current[row.uniqueId] = true;
+          return true;
+        }
+
+        return false;
+      });
+
+      setIndexedData(
+        uniqBy([...indexedData, ...toAdd], (item) => item.uniqueId).filter(
+          Boolean,
+        ),
+      );
+    } else {
+      setIndexedData(
+        uniqBy([...rows], (item) => item.uniqueId).filter(Boolean),
+      );
+      onKeyChange?.();
+    }
+
+    previousQuery.current = jsonQueryKey;
+  };
+
+  useEffect(() => {
+    return () => {
+      previousQuery.current = undefined;
+      setIndexedData([]);
+    };
+  }, []);
+  const deleteViaUniqueIds = (ids: string[]) => {
+    setIndexedData((items) =>
+      items.filter((item) => !ids.includes(item.uniqueId)),
+    );
+    previousQuery.current = "";
+  };
+
+  return { reindex, indexedData, deleteViaUniqueIds };
+}

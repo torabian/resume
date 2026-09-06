@@ -1,0 +1,1460 @@
+targets:
+- compiler: js
+  flags:
+    js-sdk-location: '@fireback/js-remote-ctx'
+  output: ../../ui/src/modules/resume/sdk
+  tags:
+  - typescript
+  - react
+  - json-schema
+  - no-sdk
+  - no-package
+- compiler: go
+  flags:
+    pkg: resumedefs
+  output: ./defs
+- compiler: preprocessor
+  output: .
+description: |
+  Resume module - stores a resume structurally in the database so it can be
+  edited via CRUD and later rendered into PDF/LaTeX (or any other format).
+
+  Layout: `Resume` is the root aggregate holding profile-level info (name,
+  headline, summary, contact details). Every resume section is its own
+  top-level entity (Company, WorkExperience, Education, Skill, Project,
+  Certification, Language) so each has full CRUD/CLI/HTTP generated for it
+  and can be edited independently.
+
+  Ownership is modeled child -> parent: each section entity carries a
+  `resume: one target: ResumeEntity` field (its ResumeId foreign key), so a
+  resume's sections are fetched with Browse filtered by resumeId rather than
+  through a many-to-many `collection` field on Resume itself (a resume "has
+  many" work experiences, it doesn't share them with other resumes).
+
+  Company is the one exception: it's a standalone reusable entity (the same
+  employer can back multiple WorkExperience rows, even across resumes), so
+  WorkExperience links to it via `company: one? target: CompanyEntity`.
+
+  Translatable fields: any free-text *content* field (a title, a summary, a
+  description, a location) is `complex(?): TString` (see
+  ../definitions/complexes.emi.yml) - a locale -> value map, so one Resume
+  row can carry both an English and a Persian rendering of the same field
+  instead of needing a whole separate resume per language. Proper
+  nouns/identifiers (a person's fullName, a company's legal name, a skill or
+  project's own name, an institution, urls/emails/ids/dates, enums) stay
+  plain `string(?)` - they aren't translated, they're the same value in
+  every language. String *slices* (achievements, technologies, highlights)
+  are left alone too, even where individual bullets are genuinely
+  translatable prose - TString has no array counterpart here without a
+  bigger structural change (each item becoming its own array/collection
+  child row) than this pass covers.
+name: resume
+dtos:
+- description: Every field of the "company" entity, but optional - used both as Update's
+    partial input and as Browse's response item shape.
+  name: companyOptional
+  fields:
+  - name: uniqueId
+    type: string?
+  - name: name
+    type: string?
+  - name: industry
+    type: complex?
+    complex: TString
+  - name: website
+    type: string?
+  - name: logoUrl
+    type: string?
+  - name: location
+    type: complex?
+    complex: TString
+  - name: description
+    type: complex?
+    complex: TString
+- description: Every field of the "resume" entity, but optional - used both as Update's
+    partial input and as Browse's response item shape.
+  name: resumeOptional
+  fields:
+  - name: uniqueId
+    type: string?
+  - name: fullName
+    type: string?
+  - name: headline
+    description: Short title under the name, e.g. "Senior Backend Engineer"
+    type: complex?
+    complex: TString
+  - name: summary
+    description: Longer professional summary / objective paragraph.
+    type: complex?
+    complex: TString
+  - name: email
+    type: string?
+  - name: phone
+    type: string?
+  - name: location
+    type: complex?
+    complex: TString
+  - name: website
+    type: string?
+  - name: linkedin
+    type: string?
+  - name: github
+    type: string?
+  - name: photoUrl
+    type: string?
+  - name: language
+    description: Language the resume content itself is written in, e.g. "en".
+    type: string?
+  - name: isPrimary
+    description: Marks the default resume when a user keeps several variants.
+    type: bool?
+- description: Every field of the "workExperience" entity, but optional - used both
+    as Update's partial input and as Browse's response item shape.
+  name: workExperienceOptional
+  fields:
+  - name: uniqueId
+    type: string?
+  - name: resume
+    type: one?
+    target: ResumeDto
+  - name: company
+    type: one?
+    target: CompanyDto
+  - name: jobTitle
+    type: complex
+    complex: TString
+  - name: employmentType
+    type: enum?
+    of:
+    - k: fullTime
+    - k: partTime
+    - k: contract
+    - k: internship
+    - k: freelance
+  - name: location
+    type: complex?
+    complex: TString
+  - name: remote
+    type: bool?
+  - name: startDate
+    description: ISO-8601 date, e.g. "2021-03-01".
+    type: string?
+  - name: endDate
+    description: ISO-8601 date. Empty/omitted when isCurrent is true.
+    type: string?
+  - name: isCurrent
+    type: bool?
+  - name: summary
+    type: complex?
+    complex: TString
+  - name: achievements
+    type: slice?
+    primitive: string
+- description: Every field of the "education" entity, but optional - used both as
+    Update's partial input and as Browse's response item shape.
+  name: educationOptional
+  fields:
+  - name: uniqueId
+    type: string?
+  - name: resume
+    type: one?
+    target: ResumeDto
+  - name: institution
+    type: string?
+  - name: degree
+    description: e.g. "B.Sc.", "M.Sc.", "Bootcamp certificate".
+    type: complex?
+    complex: TString
+  - name: fieldOfStudy
+    type: complex?
+    complex: TString
+  - name: location
+    type: complex?
+    complex: TString
+  - name: startDate
+    type: string?
+  - name: endDate
+    type: string?
+  - name: isCurrent
+    type: bool?
+  - name: grade
+    type: string?
+  - name: description
+    type: complex?
+    complex: TString
+- description: Every field of the "skill" entity, but optional - used both as Update's
+    partial input and as Browse's response item shape.
+  name: skillOptional
+  fields:
+  - name: uniqueId
+    type: string?
+  - name: resume
+    type: one?
+    target: ResumeDto
+  - name: name
+    type: string?
+  - name: category
+    type: enum?
+    of:
+    - k: language
+    - k: framework
+    - k: database
+    - k: protocol
+    - k: tool
+    - k: platform
+    - k: softSkill
+    - k: other
+  - name: level
+    type: enum?
+    of:
+    - k: beginner
+    - k: intermediate
+    - k: advanced
+    - k: expert
+  - name: yearsOfExperience
+    type: int?
+  - name: description
+    description: Longer free-text elaboration on the skill, if any.
+    type: complex?
+    complex: TString
+- description: Every field of the "project" entity, but optional - used both as Update's
+    partial input and as Browse's response item shape.
+  name: projectOptional
+  fields:
+  - name: uniqueId
+    type: string?
+  - name: resume
+    type: one?
+    target: ResumeDto
+  - name: name
+    type: string?
+  - name: role
+    type: complex?
+    complex: TString
+  - name: summary
+    type: complex?
+    complex: TString
+  - name: startDate
+    type: string?
+  - name: endDate
+    type: string?
+  - name: isOngoing
+    type: bool?
+  - name: url
+    type: string?
+  - name: repoUrl
+    type: string?
+  - name: technologies
+    type: slice?
+    primitive: string
+  - name: highlights
+    type: slice?
+    primitive: string
+- description: Every field of the "certification" entity, but optional - used both
+    as Update's partial input and as Browse's response item shape.
+  name: certificationOptional
+  fields:
+  - name: uniqueId
+    type: string?
+  - name: resume
+    type: one?
+    target: ResumeDto
+  - name: name
+    type: complex
+    complex: TString
+  - name: issuingOrganization
+    type: string?
+  - name: issueDate
+    type: string?
+  - name: expirationDate
+    type: string?
+  - name: credentialId
+    type: string?
+  - name: credentialUrl
+    type: string?
+- description: Every field of the "language" entity, but optional - used both as Update's
+    partial input and as Browse's response item shape.
+  name: languageOptional
+  fields:
+  - name: uniqueId
+    type: string?
+  - name: resume
+    type: one?
+    target: ResumeDto
+  - name: name
+    type: complex
+    complex: TString
+  - name: proficiency
+    type: enum?
+    of:
+    - k: elementary
+    - k: limitedWorking
+    - k: professionalWorking
+    - k: fullProfessional
+    - k: nativeOrBilingual
+- description: Plain dto mirroring the "company" entity's own fields.
+  name: company
+  fields:
+  - name: uniqueId
+    type: string?
+  - name: name
+    type: string
+  - name: industry
+    type: complex?
+    complex: TString
+  - name: website
+    type: string?
+  - name: logoUrl
+    type: string?
+  - name: location
+    type: complex?
+    complex: TString
+  - name: description
+    type: complex?
+    complex: TString
+- description: Plain dto mirroring the "resume" entity's own fields.
+  name: resume
+  fields:
+  - name: uniqueId
+    type: string?
+  - name: fullName
+    type: string
+  - name: headline
+    description: Short title under the name, e.g. "Senior Backend Engineer"
+    type: complex?
+    complex: TString
+  - name: summary
+    description: Longer professional summary / objective paragraph.
+    type: complex?
+    complex: TString
+  - name: email
+    type: string?
+  - name: phone
+    type: string?
+  - name: location
+    type: complex?
+    complex: TString
+  - name: website
+    type: string?
+  - name: linkedin
+    type: string?
+  - name: github
+    type: string?
+  - name: photoUrl
+    type: string?
+  - name: language
+    description: Language the resume content itself is written in, e.g. "en".
+    type: string?
+  - name: isPrimary
+    description: Marks the default resume when a user keeps several variants.
+    type: bool?
+- description: Plain dto mirroring the "workExperience" entity's own fields.
+  name: workExperience
+  fields:
+  - name: uniqueId
+    type: string?
+  - name: resume
+    type: one?
+    target: ResumeDto
+  - name: company
+    type: one?
+    target: CompanyDto
+  - name: jobTitle
+    type: complex
+    complex: TString
+  - name: employmentType
+    type: enum?
+    of:
+    - k: fullTime
+    - k: partTime
+    - k: contract
+    - k: internship
+    - k: freelance
+  - name: location
+    type: complex?
+    complex: TString
+  - name: remote
+    type: bool?
+  - name: startDate
+    description: ISO-8601 date, e.g. "2021-03-01".
+    type: string
+  - name: endDate
+    description: ISO-8601 date. Empty/omitted when isCurrent is true.
+    type: string?
+  - name: isCurrent
+    type: bool?
+  - name: summary
+    type: complex?
+    complex: TString
+  - name: achievements
+    type: slice?
+    primitive: string
+- description: Plain dto mirroring the "education" entity's own fields.
+  name: education
+  fields:
+  - name: uniqueId
+    type: string?
+  - name: resume
+    type: one?
+    target: ResumeDto
+  - name: institution
+    type: string
+  - name: degree
+    description: e.g. "B.Sc.", "M.Sc.", "Bootcamp certificate".
+    type: complex?
+    complex: TString
+  - name: fieldOfStudy
+    type: complex?
+    complex: TString
+  - name: location
+    type: complex?
+    complex: TString
+  - name: startDate
+    type: string?
+  - name: endDate
+    type: string?
+  - name: isCurrent
+    type: bool?
+  - name: grade
+    type: string?
+  - name: description
+    type: complex?
+    complex: TString
+- description: Plain dto mirroring the "skill" entity's own fields.
+  name: skill
+  fields:
+  - name: uniqueId
+    type: string?
+  - name: resume
+    type: one?
+    target: ResumeDto
+  - name: name
+    type: string
+  - name: category
+    type: enum?
+    of:
+    - k: language
+    - k: framework
+    - k: database
+    - k: protocol
+    - k: tool
+    - k: platform
+    - k: softSkill
+    - k: other
+  - name: level
+    type: enum?
+    of:
+    - k: beginner
+    - k: intermediate
+    - k: advanced
+    - k: expert
+  - name: yearsOfExperience
+    type: int?
+  - name: description
+    description: Longer free-text elaboration on the skill, if any.
+    type: complex?
+    complex: TString
+- description: Plain dto mirroring the "project" entity's own fields.
+  name: project
+  fields:
+  - name: uniqueId
+    type: string?
+  - name: resume
+    type: one?
+    target: ResumeDto
+  - name: name
+    type: string
+  - name: role
+    type: complex?
+    complex: TString
+  - name: summary
+    type: complex?
+    complex: TString
+  - name: startDate
+    type: string?
+  - name: endDate
+    type: string?
+  - name: isOngoing
+    type: bool?
+  - name: url
+    type: string?
+  - name: repoUrl
+    type: string?
+  - name: technologies
+    type: slice?
+    primitive: string
+  - name: highlights
+    type: slice?
+    primitive: string
+- description: Plain dto mirroring the "certification" entity's own fields.
+  name: certification
+  fields:
+  - name: uniqueId
+    type: string?
+  - name: resume
+    type: one?
+    target: ResumeDto
+  - name: name
+    type: complex
+    complex: TString
+  - name: issuingOrganization
+    type: string?
+  - name: issueDate
+    type: string?
+  - name: expirationDate
+    type: string?
+  - name: credentialId
+    type: string?
+  - name: credentialUrl
+    type: string?
+- description: Plain dto mirroring the "language" entity's own fields.
+  name: language
+  fields:
+  - name: uniqueId
+    type: string?
+  - name: resume
+    type: one?
+    target: ResumeDto
+  - name: name
+    type: complex
+    complex: TString
+  - name: proficiency
+    type: enum?
+    of:
+    - k: elementary
+    - k: limitedWorking
+    - k: professionalWorking
+    - k: fullProfessional
+    - k: nativeOrBilingual
+entities:
+- name: company
+  fields:
+  - name: name
+    type: string
+  - name: industry
+    type: complex?
+    complex: TString
+  - name: website
+    type: string?
+  - name: logoUrl
+    type: string?
+  - name: location
+    type: complex?
+    complex: TString
+  - name: description
+    type: complex?
+    complex: TString
+  description: An employer. Reusable across work experiences and resumes.
+- name: resume
+  fields:
+  - name: fullName
+    type: string
+  - name: headline
+    description: Short title under the name, e.g. "Senior Backend Engineer"
+    type: complex?
+    complex: TString
+  - name: summary
+    description: Longer professional summary / objective paragraph.
+    type: complex?
+    complex: TString
+  - name: email
+    type: string?
+  - name: phone
+    type: string?
+  - name: location
+    type: complex?
+    complex: TString
+  - name: website
+    type: string?
+  - name: linkedin
+    type: string?
+  - name: github
+    type: string?
+  - name: photoUrl
+    type: string?
+  - name: language
+    description: Language the resume content itself is written in, e.g. "en".
+    type: string?
+  - name: isPrimary
+    description: Marks the default resume when a user keeps several variants.
+    type: bool?
+  description: |
+    Root aggregate for a single resume/CV. Sections (work experience, education, skills, projects, certifications, languages) are separate entities that reference this one via a `resume: one` field.
+- name: workExperience
+  fields:
+  - name: resume
+    type: one
+    target: ResumeEntity
+  - name: company
+    type: one?
+    target: CompanyEntity
+  - name: jobTitle
+    type: complex
+    complex: TString
+  - name: employmentType
+    type: enum?
+    of:
+    - k: fullTime
+    - k: partTime
+    - k: contract
+    - k: internship
+    - k: freelance
+  - name: location
+    type: complex?
+    complex: TString
+  - name: remote
+    type: bool?
+  - name: startDate
+    description: ISO-8601 date, e.g. "2021-03-01".
+    type: string
+  - name: endDate
+    description: ISO-8601 date. Empty/omitted when isCurrent is true.
+    type: string?
+  - name: isCurrent
+    type: bool?
+  - name: summary
+    type: complex?
+    complex: TString
+  - name: achievements
+    type: slice?
+    primitive: string
+  description: A single employment period, linked to a Company and a Resume.
+- name: education
+  fields:
+  - name: resume
+    type: one
+    target: ResumeEntity
+  - name: institution
+    type: string
+  - name: degree
+    description: e.g. "B.Sc.", "M.Sc.", "Bootcamp certificate".
+    type: complex?
+    complex: TString
+  - name: fieldOfStudy
+    type: complex?
+    complex: TString
+  - name: location
+    type: complex?
+    complex: TString
+  - name: startDate
+    type: string?
+  - name: endDate
+    type: string?
+  - name: isCurrent
+    type: bool?
+  - name: grade
+    type: string?
+  - name: description
+    type: complex?
+    complex: TString
+  description: A single degree/program, linked to a Resume.
+- name: skill
+  fields:
+  - name: resume
+    type: one
+    target: ResumeEntity
+  - name: name
+    type: string
+  - name: category
+    type: enum?
+    of:
+    - k: language
+    - k: framework
+    - k: database
+    - k: protocol
+    - k: tool
+    - k: platform
+    - k: softSkill
+    - k: other
+  - name: level
+    type: enum?
+    of:
+    - k: beginner
+    - k: intermediate
+    - k: advanced
+    - k: expert
+  - name: yearsOfExperience
+    type: int?
+  - name: description
+    description: Longer free-text elaboration on the skill, if any.
+    type: complex?
+    complex: TString
+  description: A single skill/technology entry, linked to a Resume.
+- name: project
+  fields:
+  - name: resume
+    type: one
+    target: ResumeEntity
+  - name: name
+    type: string
+  - name: role
+    type: complex?
+    complex: TString
+  - name: summary
+    type: complex?
+    complex: TString
+  - name: startDate
+    type: string?
+  - name: endDate
+    type: string?
+  - name: isOngoing
+    type: bool?
+  - name: url
+    type: string?
+  - name: repoUrl
+    type: string?
+  - name: technologies
+    type: slice?
+    primitive: string
+  - name: highlights
+    type: slice?
+    primitive: string
+  description: A portfolio/side/work project entry, linked to a Resume.
+- name: certification
+  fields:
+  - name: resume
+    type: one
+    target: ResumeEntity
+  - name: name
+    type: complex
+    complex: TString
+  - name: issuingOrganization
+    type: string?
+  - name: issueDate
+    type: string?
+  - name: expirationDate
+    type: string?
+  - name: credentialId
+    type: string?
+  - name: credentialUrl
+    type: string?
+  description: A certification/license entry, linked to a Resume.
+- name: language
+  fields:
+  - name: resume
+    type: one
+    target: ResumeEntity
+  - name: name
+    type: complex
+    complex: TString
+  - name: proficiency
+    type: enum?
+    of:
+    - k: elementary
+    - k: limitedWorking
+    - k: professionalWorking
+    - k: fullProfessional
+    - k: nativeOrBilingual
+  description: A spoken/written language proficiency entry, linked to a Resume.
+complexes:
+- name: TString
+  namespace: complexes
+  location: github.com/torabian/fireback/modules/fireback/complexes
+  compiler: go
+- name: TString
+  location: '@fireback/complexes'
+  compiler: ts
+- name: XDate
+  namespace: complexes
+  location: github.com/torabian/fireback/modules/fireback/complexes
+  compiler: go
+- name: XDate
+  location: '@fireback/complexes'
+  compiler: ts
+- name: ComplexFile
+  namespace: storage
+  location: github.com/torabian/fireback/modules/storage
+  compiler: go
+- name: ComplexFile
+  location: '@fireback/resumable-uploader'
+  compiler: ts
+actions:
+- name: companyCreate
+  cliName: create
+  cliShort: c
+  url: /company
+  method: post
+  description: Creates a new "company" row.
+  in:
+    dto: CompanyDto
+  out:
+    envelope: GResponse
+    dto: CompanyDto
+- name: companyUpdate
+  cliName: update
+  cliShort: u
+  url: /company/:uniqueId
+  method: patch
+  description: Applies a partial update to a "company" row by uniqueId.
+  in:
+    dto: CompanyOptionalDto
+  out:
+    envelope: GResponse
+    dto: CompanyDto
+- name: companyGet
+  cliName: get
+  cliShort: g
+  url: /company/:uniqueId
+  method: get
+  description: Looks up a single "company" row by uniqueId.
+  out:
+    envelope: GResponse
+    dto: CompanyDto
+- name: companyBrowse
+  cliName: browse
+  cliShort: b
+  url: /company/browse
+  method: get
+  qs:
+  - name: filter
+    type: string
+  - name: sort
+    type: string
+  - name: startIndex
+    type: int
+  - name: itemsPerPage
+    type: int
+  - name: cursor
+    type: string
+  description: Returns "company" rows matching a filter, sorted/paged (see emigorm.ApplyQueryFilter/ApplyQueryScope).
+  out:
+    envelope: GResponse
+    dto: CompanyOptionalDto
+- name: companyAwareDeletePreview
+  cliName: delete-preview
+  cliShort: dp
+  url: /company/delete-preview
+  method: get
+  qs:
+  - name: uniqueIds
+    type: slice
+    primitive: string
+  description: Reports what deleting the given "company" uniqueIds would affect, without
+    deleting anything.
+  out:
+    envelope: GResponse
+    fields:
+    - name: message
+      type: string
+    - name: affected
+      type: array
+      fields:
+      - name: relation
+        type: string
+      - name: count
+        type: int64
+- name: companyAwareDelete
+  cliName: delete
+  cliShort: d
+  url: /company/delete
+  method: post
+  description: Deletes the given "company" uniqueIds, along with everything companyAwareDeletePreview
+    reports.
+  in:
+    fields:
+    - name: uniqueIds
+      type: slice
+      primitive: string
+- name: resumeCreate
+  cliName: create
+  cliShort: c
+  url: /resume
+  method: post
+  description: Creates a new "resume" row.
+  in:
+    dto: ResumeDto
+  out:
+    envelope: GResponse
+    dto: ResumeDto
+- name: resumeUpdate
+  cliName: update
+  cliShort: u
+  url: /resume/:uniqueId
+  method: patch
+  description: Applies a partial update to a "resume" row by uniqueId.
+  in:
+    dto: ResumeOptionalDto
+  out:
+    envelope: GResponse
+    dto: ResumeDto
+- name: resumeGet
+  cliName: get
+  cliShort: g
+  url: /resume/:uniqueId
+  method: get
+  description: Looks up a single "resume" row by uniqueId.
+  out:
+    envelope: GResponse
+    dto: ResumeDto
+- name: resumeBrowse
+  cliName: browse
+  cliShort: b
+  url: /resume/browse
+  method: get
+  qs:
+  - name: filter
+    type: string
+  - name: sort
+    type: string
+  - name: startIndex
+    type: int
+  - name: itemsPerPage
+    type: int
+  - name: cursor
+    type: string
+  description: Returns "resume" rows matching a filter, sorted/paged (see emigorm.ApplyQueryFilter/ApplyQueryScope).
+  out:
+    envelope: GResponse
+    dto: ResumeOptionalDto
+- name: resumeAwareDeletePreview
+  cliName: delete-preview
+  cliShort: dp
+  url: /resume/delete-preview
+  method: get
+  qs:
+  - name: uniqueIds
+    type: slice
+    primitive: string
+  description: Reports what deleting the given "resume" uniqueIds would affect, without
+    deleting anything.
+  out:
+    envelope: GResponse
+    fields:
+    - name: message
+      type: string
+    - name: affected
+      type: array
+      fields:
+      - name: relation
+        type: string
+      - name: count
+        type: int64
+- name: resumeAwareDelete
+  cliName: delete
+  cliShort: d
+  url: /resume/delete
+  method: post
+  description: Deletes the given "resume" uniqueIds, along with everything resumeAwareDeletePreview
+    reports.
+  in:
+    fields:
+    - name: uniqueIds
+      type: slice
+      primitive: string
+- name: workExperienceCreate
+  cliName: create
+  cliShort: c
+  url: /workExperience
+  method: post
+  description: Creates a new "workExperience" row.
+  in:
+    dto: WorkExperienceDto
+  out:
+    envelope: GResponse
+    dto: WorkExperienceDto
+- name: workExperienceUpdate
+  cliName: update
+  cliShort: u
+  url: /workExperience/:uniqueId
+  method: patch
+  description: Applies a partial update to a "workExperience" row by uniqueId.
+  in:
+    dto: WorkExperienceOptionalDto
+  out:
+    envelope: GResponse
+    dto: WorkExperienceDto
+- name: workExperienceGet
+  cliName: get
+  cliShort: g
+  url: /workExperience/:uniqueId
+  method: get
+  description: Looks up a single "workExperience" row by uniqueId.
+  out:
+    envelope: GResponse
+    dto: WorkExperienceDto
+- name: workExperienceBrowse
+  cliName: browse
+  cliShort: b
+  url: /workExperience/browse
+  method: get
+  qs:
+  - name: filter
+    type: string
+  - name: sort
+    type: string
+  - name: startIndex
+    type: int
+  - name: itemsPerPage
+    type: int
+  - name: cursor
+    type: string
+  description: Returns "workExperience" rows matching a filter, sorted/paged (see
+    emigorm.ApplyQueryFilter/ApplyQueryScope).
+  out:
+    envelope: GResponse
+    dto: WorkExperienceOptionalDto
+- name: workExperienceAwareDeletePreview
+  cliName: delete-preview
+  cliShort: dp
+  url: /workExperience/delete-preview
+  method: get
+  qs:
+  - name: uniqueIds
+    type: slice
+    primitive: string
+  description: Reports what deleting the given "workExperience" uniqueIds would affect,
+    without deleting anything.
+  out:
+    envelope: GResponse
+    fields:
+    - name: message
+      type: string
+    - name: affected
+      type: array
+      fields:
+      - name: relation
+        type: string
+      - name: count
+        type: int64
+- name: workExperienceAwareDelete
+  cliName: delete
+  cliShort: d
+  url: /workExperience/delete
+  method: post
+  description: Deletes the given "workExperience" uniqueIds, along with everything
+    workExperienceAwareDeletePreview reports.
+  in:
+    fields:
+    - name: uniqueIds
+      type: slice
+      primitive: string
+- name: educationCreate
+  cliName: create
+  cliShort: c
+  url: /education
+  method: post
+  description: Creates a new "education" row.
+  in:
+    dto: EducationDto
+  out:
+    envelope: GResponse
+    dto: EducationDto
+- name: educationUpdate
+  cliName: update
+  cliShort: u
+  url: /education/:uniqueId
+  method: patch
+  description: Applies a partial update to a "education" row by uniqueId.
+  in:
+    dto: EducationOptionalDto
+  out:
+    envelope: GResponse
+    dto: EducationDto
+- name: educationGet
+  cliName: get
+  cliShort: g
+  url: /education/:uniqueId
+  method: get
+  description: Looks up a single "education" row by uniqueId.
+  out:
+    envelope: GResponse
+    dto: EducationDto
+- name: educationBrowse
+  cliName: browse
+  cliShort: b
+  url: /education/browse
+  method: get
+  qs:
+  - name: filter
+    type: string
+  - name: sort
+    type: string
+  - name: startIndex
+    type: int
+  - name: itemsPerPage
+    type: int
+  - name: cursor
+    type: string
+  description: Returns "education" rows matching a filter, sorted/paged (see emigorm.ApplyQueryFilter/ApplyQueryScope).
+  out:
+    envelope: GResponse
+    dto: EducationOptionalDto
+- name: educationAwareDeletePreview
+  cliName: delete-preview
+  cliShort: dp
+  url: /education/delete-preview
+  method: get
+  qs:
+  - name: uniqueIds
+    type: slice
+    primitive: string
+  description: Reports what deleting the given "education" uniqueIds would affect,
+    without deleting anything.
+  out:
+    envelope: GResponse
+    fields:
+    - name: message
+      type: string
+    - name: affected
+      type: array
+      fields:
+      - name: relation
+        type: string
+      - name: count
+        type: int64
+- name: educationAwareDelete
+  cliName: delete
+  cliShort: d
+  url: /education/delete
+  method: post
+  description: Deletes the given "education" uniqueIds, along with everything educationAwareDeletePreview
+    reports.
+  in:
+    fields:
+    - name: uniqueIds
+      type: slice
+      primitive: string
+- name: skillCreate
+  cliName: create
+  cliShort: c
+  url: /skill
+  method: post
+  description: Creates a new "skill" row.
+  in:
+    dto: SkillDto
+  out:
+    envelope: GResponse
+    dto: SkillDto
+- name: skillUpdate
+  cliName: update
+  cliShort: u
+  url: /skill/:uniqueId
+  method: patch
+  description: Applies a partial update to a "skill" row by uniqueId.
+  in:
+    dto: SkillOptionalDto
+  out:
+    envelope: GResponse
+    dto: SkillDto
+- name: skillGet
+  cliName: get
+  cliShort: g
+  url: /skill/:uniqueId
+  method: get
+  description: Looks up a single "skill" row by uniqueId.
+  out:
+    envelope: GResponse
+    dto: SkillDto
+- name: skillBrowse
+  cliName: browse
+  cliShort: b
+  url: /skill/browse
+  method: get
+  qs:
+  - name: filter
+    type: string
+  - name: sort
+    type: string
+  - name: startIndex
+    type: int
+  - name: itemsPerPage
+    type: int
+  - name: cursor
+    type: string
+  description: Returns "skill" rows matching a filter, sorted/paged (see emigorm.ApplyQueryFilter/ApplyQueryScope).
+  out:
+    envelope: GResponse
+    dto: SkillOptionalDto
+- name: skillAwareDeletePreview
+  cliName: delete-preview
+  cliShort: dp
+  url: /skill/delete-preview
+  method: get
+  qs:
+  - name: uniqueIds
+    type: slice
+    primitive: string
+  description: Reports what deleting the given "skill" uniqueIds would affect, without
+    deleting anything.
+  out:
+    envelope: GResponse
+    fields:
+    - name: message
+      type: string
+    - name: affected
+      type: array
+      fields:
+      - name: relation
+        type: string
+      - name: count
+        type: int64
+- name: skillAwareDelete
+  cliName: delete
+  cliShort: d
+  url: /skill/delete
+  method: post
+  description: Deletes the given "skill" uniqueIds, along with everything skillAwareDeletePreview
+    reports.
+  in:
+    fields:
+    - name: uniqueIds
+      type: slice
+      primitive: string
+- name: projectCreate
+  cliName: create
+  cliShort: c
+  url: /project
+  method: post
+  description: Creates a new "project" row.
+  in:
+    dto: ProjectDto
+  out:
+    envelope: GResponse
+    dto: ProjectDto
+- name: projectUpdate
+  cliName: update
+  cliShort: u
+  url: /project/:uniqueId
+  method: patch
+  description: Applies a partial update to a "project" row by uniqueId.
+  in:
+    dto: ProjectOptionalDto
+  out:
+    envelope: GResponse
+    dto: ProjectDto
+- name: projectGet
+  cliName: get
+  cliShort: g
+  url: /project/:uniqueId
+  method: get
+  description: Looks up a single "project" row by uniqueId.
+  out:
+    envelope: GResponse
+    dto: ProjectDto
+- name: projectBrowse
+  cliName: browse
+  cliShort: b
+  url: /project/browse
+  method: get
+  qs:
+  - name: filter
+    type: string
+  - name: sort
+    type: string
+  - name: startIndex
+    type: int
+  - name: itemsPerPage
+    type: int
+  - name: cursor
+    type: string
+  description: Returns "project" rows matching a filter, sorted/paged (see emigorm.ApplyQueryFilter/ApplyQueryScope).
+  out:
+    envelope: GResponse
+    dto: ProjectOptionalDto
+- name: projectAwareDeletePreview
+  cliName: delete-preview
+  cliShort: dp
+  url: /project/delete-preview
+  method: get
+  qs:
+  - name: uniqueIds
+    type: slice
+    primitive: string
+  description: Reports what deleting the given "project" uniqueIds would affect, without
+    deleting anything.
+  out:
+    envelope: GResponse
+    fields:
+    - name: message
+      type: string
+    - name: affected
+      type: array
+      fields:
+      - name: relation
+        type: string
+      - name: count
+        type: int64
+- name: projectAwareDelete
+  cliName: delete
+  cliShort: d
+  url: /project/delete
+  method: post
+  description: Deletes the given "project" uniqueIds, along with everything projectAwareDeletePreview
+    reports.
+  in:
+    fields:
+    - name: uniqueIds
+      type: slice
+      primitive: string
+- name: certificationCreate
+  cliName: create
+  cliShort: c
+  url: /certification
+  method: post
+  description: Creates a new "certification" row.
+  in:
+    dto: CertificationDto
+  out:
+    envelope: GResponse
+    dto: CertificationDto
+- name: certificationUpdate
+  cliName: update
+  cliShort: u
+  url: /certification/:uniqueId
+  method: patch
+  description: Applies a partial update to a "certification" row by uniqueId.
+  in:
+    dto: CertificationOptionalDto
+  out:
+    envelope: GResponse
+    dto: CertificationDto
+- name: certificationGet
+  cliName: get
+  cliShort: g
+  url: /certification/:uniqueId
+  method: get
+  description: Looks up a single "certification" row by uniqueId.
+  out:
+    envelope: GResponse
+    dto: CertificationDto
+- name: certificationBrowse
+  cliName: browse
+  cliShort: b
+  url: /certification/browse
+  method: get
+  qs:
+  - name: filter
+    type: string
+  - name: sort
+    type: string
+  - name: startIndex
+    type: int
+  - name: itemsPerPage
+    type: int
+  - name: cursor
+    type: string
+  description: Returns "certification" rows matching a filter, sorted/paged (see emigorm.ApplyQueryFilter/ApplyQueryScope).
+  out:
+    envelope: GResponse
+    dto: CertificationOptionalDto
+- name: certificationAwareDeletePreview
+  cliName: delete-preview
+  cliShort: dp
+  url: /certification/delete-preview
+  method: get
+  qs:
+  - name: uniqueIds
+    type: slice
+    primitive: string
+  description: Reports what deleting the given "certification" uniqueIds would affect,
+    without deleting anything.
+  out:
+    envelope: GResponse
+    fields:
+    - name: message
+      type: string
+    - name: affected
+      type: array
+      fields:
+      - name: relation
+        type: string
+      - name: count
+        type: int64
+- name: certificationAwareDelete
+  cliName: delete
+  cliShort: d
+  url: /certification/delete
+  method: post
+  description: Deletes the given "certification" uniqueIds, along with everything
+    certificationAwareDeletePreview reports.
+  in:
+    fields:
+    - name: uniqueIds
+      type: slice
+      primitive: string
+- name: languageCreate
+  cliName: create
+  cliShort: c
+  url: /language
+  method: post
+  description: Creates a new "language" row.
+  in:
+    dto: LanguageDto
+  out:
+    envelope: GResponse
+    dto: LanguageDto
+- name: languageUpdate
+  cliName: update
+  cliShort: u
+  url: /language/:uniqueId
+  method: patch
+  description: Applies a partial update to a "language" row by uniqueId.
+  in:
+    dto: LanguageOptionalDto
+  out:
+    envelope: GResponse
+    dto: LanguageDto
+- name: languageGet
+  cliName: get
+  cliShort: g
+  url: /language/:uniqueId
+  method: get
+  description: Looks up a single "language" row by uniqueId.
+  out:
+    envelope: GResponse
+    dto: LanguageDto
+- name: languageBrowse
+  cliName: browse
+  cliShort: b
+  url: /language/browse
+  method: get
+  qs:
+  - name: filter
+    type: string
+  - name: sort
+    type: string
+  - name: startIndex
+    type: int
+  - name: itemsPerPage
+    type: int
+  - name: cursor
+    type: string
+  description: Returns "language" rows matching a filter, sorted/paged (see emigorm.ApplyQueryFilter/ApplyQueryScope).
+  out:
+    envelope: GResponse
+    dto: LanguageOptionalDto
+- name: languageAwareDeletePreview
+  cliName: delete-preview
+  cliShort: dp
+  url: /language/delete-preview
+  method: get
+  qs:
+  - name: uniqueIds
+    type: slice
+    primitive: string
+  description: Reports what deleting the given "language" uniqueIds would affect,
+    without deleting anything.
+  out:
+    envelope: GResponse
+    fields:
+    - name: message
+      type: string
+    - name: affected
+      type: array
+      fields:
+      - name: relation
+        type: string
+      - name: count
+        type: int64
+- name: languageAwareDelete
+  cliName: delete
+  cliShort: d
+  url: /language/delete
+  method: post
+  description: Deletes the given "language" uniqueIds, along with everything languageAwareDeletePreview
+    reports.
+  in:
+    fields:
+    - name: uniqueIds
+      type: slice
+      primitive: string

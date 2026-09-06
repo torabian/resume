@@ -1,0 +1,508 @@
+import { useQueryClient, type UseQueryResult } from "@tanstack/react-query";
+import classNames from "classnames";
+import { type FormikProps } from "formik";
+import { get, isArray, isObject, set } from "lodash";
+import { useEffect, useState } from "react";
+import Select from "react-select/async";
+import { type UseRemoteQuery } from "../../../types/remoteQuery";
+import {
+  resolveFormSelectStrings,
+  useFormSelectLocale,
+  type FormSelectStrings,
+} from "./translations";
+import {
+  BaseFormElement,
+  type BaseFormElementProps,
+} from "../base-form-element/BaseFormElement";
+import type { ResponseDto } from "@fireback/js-remote-ctx/envelopes/google-json-style-guide/generated/ResponseDto";
+
+export interface FormSelectBase<
+  T,
+  ValueIdentifier,
+> extends BaseFormElementProps {
+  /**
+   * @description label is what user will see as the text on top of the input or near
+   * it depenging on the design.
+   */
+  label?: string;
+
+  /**
+   * @description placeholder is the same common placeholder element of any input
+   */
+  placeholder?: string;
+
+  /**
+   * @description errorMessage is usually a string message when available it will make the field red
+   * and show the message below it to the user. Can be directly read from the formik errors object as well
+   */
+  errorMessage?: string;
+
+  /**
+   * @description keyExtractor extract the value of the input which will be compared to determine
+   * which option is selected, as well as will be used upon a new selection
+   */
+  keyExtractor?: (t: T) => ValueIdentifier;
+
+  /**
+   * @description List of the items which will be used to show as options. This is not async,
+   * if you want to have dynamic options maybe better to use FormEntitySelect.
+   */
+  // options?: T[];
+
+  /**
+   * @description children object.
+   */
+  children?: any;
+
+  /**
+   * @description fnLabelFormat will be called on each item in the list, to create the string which user
+   * will be seeing.
+   */
+  fnLabelFormat?: (item: T) => string;
+
+  /**
+   * @description Triggers each type user types into the auto suggestion list.
+   */
+  onInputChange?: (t: string) => void;
+
+  /**
+   * @description Skips the autocompletion component and renders the html <select... components
+   * instead regardless.
+   */
+  convertToNative?: boolean;
+
+  /**
+   * @description You can have different type of the select.
+   * @enum auto means automatically decideds for you
+   * @enum verbose means it would show the options as a radio list so user can choose.
+   */
+  type?: "auto" | "verbose";
+
+  /**
+   * @description name property of the input will appear on html[name=xxx]
+   */
+  name?: string;
+
+  /**
+   * Fireback Query Result which includes items and react-query query object.
+   * This is the only way to provide the form select with options,
+   * even static array needs to be converted.
+   * @param params
+   * @returns
+   */
+  querySource: (params: UseRemoteQuery) => {
+    query: UseQueryResult<ResponseDto<T>, any>;
+    items: T[];
+    keyExtractor?: (item: T) => any;
+  };
+
+  /**
+   * @description withPreloads
+   * Goes to the query to left join inner tables (objects) or foreign relations if needed.
+   */
+  withPreloads?: string;
+
+  /**
+   * @description When true, the field can be explicitly cleared back to null (not just
+   * left at its current selection) - a "x" clear control appears on the react-select
+   * variant, and picking the placeholder option on the native <select> variant sets the
+   * field to null instead of leaving it untouched. This matters specifically because a
+   * cleared value has to serialize as a literal `null` in the request body, not just be
+   * missing/undefined - fireback's generated Update actions only clear a database
+   * column when the field is explicitly `null` in the JSON body (see
+   * emigo.Nullable[T].UnmarshalJSON: an absent key never touches it at all, only `null`
+   * does), so without this there was no way to null out a value the user had
+   * previously set, only to leave it alone or pick a different one.
+   */
+  nullable?: boolean;
+
+  /**
+   * @description 2-char locale code (e.g. "en", "de", "fa") selecting which
+   * built-in copy of FormSelect's own strings (placeholder, "no options",
+   * etc.) to render - see `./translations`'s `FORM_SELECT_LOCALES` for the
+   * full list. Optional even without a provider - defaults to "en".
+   *
+   * You don't have to pass this on every single FormSelect: mount
+   * `<FormSelectLocaleProvider value={locale}>` once near your app's root
+   * (see `./translations`) and every FormSelect under it picks that up
+   * automatically. This prop always takes priority over the provider when
+   * both are present, for the odd one-off that needs a different locale.
+   * Resolved independently of the app's own `useS`/locale context either
+   * way, so FormSelect doesn't need either to be usable.
+   */
+  locale?: string;
+
+  /**
+   * @description Overrides one or more of FormSelect's own strings, on top
+   * of whatever `locale` resolves to (or replacing them entirely - just
+   * supply all of `FormSelectStrings`). Type-safe: an unknown key or a
+   * non-string value is a compile error.
+   */
+  translations?: Partial<FormSelectStrings>;
+}
+
+interface FormSelectEffectBase<TargetType, T, ValueIdentifier> {
+  form: FormikProps<TargetType>;
+  field: string;
+
+  /**
+   * When set true, it would skip adding ListId or Id fields suffix for objects
+   * and arrays used in Fireback entities
+   */
+  skipFirebackMetaData?: boolean;
+}
+
+interface FormSelectEffect<
+  TargetType,
+  T,
+  ValueIdentifier,
+> extends FormSelectEffectBase<TargetType, T, ValueIdentifier> {
+  beforeSet?: (item: T) => ValueIdentifier;
+}
+
+interface FormSelectMultipleEffect<
+  TargetType,
+  T,
+  ValueIdentifier,
+> extends FormSelectEffectBase<TargetType, T, ValueIdentifier> {
+  beforeSet?: (items: T[]) => ValueIdentifier[];
+}
+
+export interface FormSelectProps<T, ValueIdentifier> extends FormSelectBase<
+  T,
+  ValueIdentifier
+> {
+  /**
+   * @description value is the form element actual values which will be read from the form object,
+   * regardless of the options type
+   */
+  value?: T | ValueIdentifier;
+
+  /**
+   * @description allows the user to have multiple selection
+   */
+  multiple?: boolean;
+
+  /**
+   * @description Will be triggered regardless of the usage when a value has been changed.
+   * @returns
+   */
+  onChange?: (value: T) => void;
+
+  /**
+   * @description formEffect
+   * Magic option used for applying the value change directly into a formik object,
+   * useful for selecting object, array items
+   */
+  formEffect?: FormSelectEffect<any, T, ValueIdentifier>;
+}
+
+export interface FormSelectMultipleProps<
+  T,
+  ValueIdentifier,
+> extends FormSelectBase<T, ValueIdentifier> {
+  /**
+   * @description value is the form element actual values which will be read from the form object,
+   * regardless of the options type
+   */
+  value?: T[];
+
+  /**
+   * @description Will be triggered regardless of the usage when a value has been changed.
+   * @returns
+   */
+  onChange?: (value: T[]) => void;
+
+  /**
+   * @description formEffect
+   * Magic option used for applying the value change directly into a formik object,
+   * useful for selecting object, array items
+   */
+  formEffect?: FormSelectMultipleEffect<any, T, ValueIdentifier>;
+}
+
+export function FormSelectMultiple<T, V>(props: FormSelectMultipleProps<T, V>) {
+  return <FormSelect<T, V> {...(props as any)} multiple={true} />;
+}
+export function FormSelect<T, V>(props: FormSelectProps<T, V>) {
+  // Explicit `locale` prop wins; otherwise fall back to whatever an
+  // ancestor <FormSelectLocaleProvider> set (undefined if none is mounted,
+  // in which case resolveFormSelectStrings' own "en" default applies).
+  const contextLocale = useFormSelectLocale();
+  const s = resolveFormSelectStrings(
+    props.locale ?? contextLocale,
+    props.translations,
+  );
+
+  const queryClient = useQueryClient();
+  let [keyword, setKeyword] = useState<string>("");
+
+  // Debounced separately from `keyword` itself: `keyword` changing on every
+  // keystroke used to go straight into the querySource call below, and since
+  // that's part of its react-query key, every single keystroke fired a brand
+  // new network request (see the comment below - the generic Browse actions
+  // these querySources wrap ignore searchPhrase entirely server-side, so
+  // filtering as the user types was already happening purely client-side in
+  // promiseOptions against whichever page happened to have last resolved).
+  // Typing a whole option's label this way could fire a dozen redundant
+  // round trips in a couple hundred ms - harmless on a fast/idle machine, but
+  // on a loaded CI runner those round trips queue up and can push a later
+  // field's lookup past a fixed timeout (see messaging-config.cy.ts). Only
+  // the debounced value feeds the query, so a fast typist collapses down to
+  // one request instead of one per character.
+  const [debouncedKeyword, setDebouncedKeyword] = useState<string>("");
+  useEffect(() => {
+    const timeoutId = setTimeout(() => setDebouncedKeyword(keyword), 300);
+    return () => clearTimeout(timeoutId);
+  }, [keyword]);
+
+  if (!props.querySource) {
+    return <div>{s.noQuerySourceToRender}</div>;
+  }
+
+  // Bug fix: this used to fetch only 20 items and never actually filter by what
+  // was typed at all (see promiseOptions below) - `keyword` was tracked but never
+  // read anywhere, so the dropdown always showed the exact same unfiltered first
+  // page regardless of the search box's contents. A generous itemsPerPage (these
+  // are admin-configuration pickers - providers/templates realistically number in
+  // the dozens, not thousands) plus real client-side filtering against `keyword`
+  // covers this without depending on server-side search support, which the
+  // generic Browse actions these querySources wrap don't have (SearchPhrase is
+  // only meaningful to reactivesearch's own hand-written providers - see
+  // abac.QueryMenusReact/QueryRolesReact - not the generic entity Browse/Query
+  // path). `query.searchPhrase` is still forwarded in case a given querySource
+  // does have real server-side search to offer, but nothing currently requires it.
+  const { query, keyExtractor: queryKeyExtractor } = props.querySource({
+    queryClient,
+    query: {
+      itemsPerPage: 200,
+      withPreloads: props.withPreloads,
+      searchPhrase: debouncedKeyword,
+    },
+  });
+
+  const keyExtractor: (t: T) => V =
+    props.keyExtractor || queryKeyExtractor || ((item) => JSON.stringify(item));
+
+  const options = query?.data?.data?.items;
+
+  const onChange = (value: T | T[] | null) => {
+    // if there are form effect, we need to apply them, depending on the type
+    if (props?.formEffect?.form) {
+      const { formEffect } = props;
+      const newValue = {
+        ...formEffect.form.values,
+      };
+
+      // A cleared selection (react-select's isClearable "x", or the native <select>'s
+      // placeholder option when nullable - see props.nullable's doc comment) comes in
+      // as `null`, never a T to run beforeSet on - calling e.g. `item.uniqueId` on it
+      // would throw. Set the field to a literal null directly instead, so it actually
+      // serializes as `null` on save rather than being silently dropped.
+      if (value === null) {
+        set(newValue, formEffect.field, null);
+        formEffect?.form.setValues(newValue);
+        if (props.onChange && typeof props.onChange === "function") {
+          props.onChange(null as any);
+        }
+        return;
+      }
+
+      if (formEffect.beforeSet) {
+        value = formEffect.beforeSet(value as T) as any;
+      }
+
+      set(newValue, formEffect.field, value);
+
+      // We need to apply to the form effect based on the actual value of the data which
+      // has been changed, so it would work outof the box.
+      // For the object, we need to add the Id field as well alongside the object itself.
+      // This might be unnecessary.
+      if (
+        isObject(value) &&
+        (value as any).uniqueId &&
+        formEffect.skipFirebackMetaData !== true
+      ) {
+        set(newValue, formEffect.field + "Id", (value as any).uniqueId);
+      }
+
+      // If array, we need to extract all of the items uniqueId, and send with ListId suffix
+      // for fireback to pick them up.
+      if (isArray(value) && formEffect.skipFirebackMetaData !== true) {
+        const arrayTarget = formEffect.field + "ListId";
+        set(
+          newValue,
+          arrayTarget,
+          (value || []).map((t: any) => t.uniqueId),
+        );
+      }
+
+      formEffect?.form.setValues(newValue);
+    }
+
+    // regardless of formEffect, if there is unchange we are going to call onChange, if it's provided.
+    if (props.onChange && typeof props.onChange === "function") {
+      props.onChange(value as T);
+    }
+  };
+
+  // Let's pick the value from formEffect.
+  let value = props.value;
+  if (value === undefined && props.formEffect?.form) {
+    const possibleValue = get(
+      props.formEffect.form.values,
+      props.formEffect.field,
+    );
+    if (possibleValue !== undefined) {
+      value = possibleValue;
+    }
+  }
+
+  if (typeof value !== "object" && keyExtractor && value !== undefined) {
+    value = (options || []).find((item) => keyExtractor(item) === value);
+  }
+
+  // if (props.type === "verbose") {
+  //   return <VerboseSelect {...props} />;
+  // }
+
+  // Bug fix: this used to always resolve the full, unfiltered `options` list
+  // regardless of inputValue - typing into the search box never actually narrowed
+  // anything down. Match case-insensitively against whatever's actually rendered
+  // for each option (fnLabelFormat, when given - the same string the user is
+  // looking at), falling back to the raw item otherwise.
+  const promiseOptions = (inputValue: string) =>
+    new Promise<T[]>((resolve) => {
+      setTimeout(() => {
+        if (!inputValue) {
+          resolve(options);
+          return;
+        }
+        const needle = inputValue.toLowerCase();
+        // Bug fix: falling back to String(item) for an object-shaped option
+        // (e.g. the plain { label, value } pairs createQuerySource wraps a
+        // static array in, as every EmailProvider/GsmProvider "Type" select
+        // does) stringified to the useless "[object Object]" - matching
+        // nothing typed, so the dropdown went empty for every keystroke
+        // instead of narrowing down. react-select's own default rendering
+        // (formatOptionLabel left unset, as none of these callers set it)
+        // already falls back to reading option.label - mirror that same
+        // convention here so the filter matches what's actually on screen.
+        const labelOf = (item: T) =>
+          (props.fnLabelFormat
+            ? props.fnLabelFormat(item)
+            : ((item as any)?.label ?? String(item))) ?? "";
+        resolve(
+          (options || []).filter((item) =>
+            labelOf(item).toLowerCase().includes(needle),
+          ),
+        );
+      }, 100);
+    });
+
+  return (
+    <BaseFormElement {...props}>
+      {props.children}
+      {props.convertToNative ? (
+        <select
+          value={value as any}
+          multiple={props.multiple}
+          onChange={(e) => {
+            const item = options?.find(
+              (t: any) => t.uniqueId === e.target.value,
+            ) as any;
+
+            // The placeholder option's value is "" - with no match found, `item` is
+            // undefined. Only turn that into an explicit null (see props.nullable's
+            // doc comment) when the caller actually opted in; otherwise keep the
+            // previous "leave it alone" behavior every other FormSelect usage relies
+            // on.
+            onChange(item ?? (props.nullable ? null : undefined));
+          }}
+          className={classNames(
+            "form-select",
+            props.errorMessage && "is-invalid",
+            props.validMessage && "is-valid",
+          )}
+          disabled={props.disabled}
+          aria-label={s.defaultSelectExample}
+        >
+          <option key={undefined} value={""}>
+            {s.selectPlaceholder}
+          </option>
+          {options?.filter(Boolean).map((t) => {
+            const itemValue = keyExtractor(t);
+            return (
+              <option key={itemValue as any} value={itemValue as any}>
+                {props.fnLabelFormat(t)}
+              </option>
+            );
+          })}
+        </select>
+      ) : (
+        <>
+          <Select
+            value={value as any}
+            onChange={(newValue) => {
+              onChange(newValue as T);
+            }}
+            isMulti={props.multiple}
+            isClearable={props.nullable}
+            classNames={{
+              container(propsx: any) {
+                return classNames(
+                  props.errorMessage &&
+                    " form-control form-control-no-padding is-invalid",
+                  props.validMessage && "is-valid",
+                );
+              },
+              control(props2: any) {
+                return classNames("form-control form-control-no-padding");
+              },
+              menu(props) {
+                return "react-select-menu-area";
+              },
+            }}
+            isSearchable
+            defaultOptions={options}
+            placeholder={s.searchPlaceholder}
+            noOptionsMessage={() => s.noOptions}
+            getOptionValue={keyExtractor as any}
+            loadOptions={promiseOptions}
+            formatOptionLabel={props.fnLabelFormat}
+            onInputChange={setKeyword}
+          />
+        </>
+      )}
+    </BaseFormElement>
+  );
+}
+
+// function VerboseSelect<T, ValueIdentifier>(
+//   props: FormSelectProps<T, ValueIdentifier>
+// ) {
+//   return (
+//     <BaseFormElement {...props}>
+//       <div className="form-select-verbos">
+//         {options?.map((item) => {
+//           const value = props.keyExtractor(item);
+
+//           return (
+//             <label key={`${value}`}>
+//               <input
+//                 name={props.name}
+//                 type="radio"
+//                 onClick={(t) => {
+//                   props.onChange(value);
+//                 }}
+//                 value={`${value}`}
+//                 checked={value === props.value}
+//               />
+//               {props.fnLabelFormat(item)}
+//             </label>
+//           );
+//         })}
+//       </div>
+//     </BaseFormElement>
+//   );
+// }

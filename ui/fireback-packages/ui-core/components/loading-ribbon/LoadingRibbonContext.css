@@ -1,0 +1,14 @@
+/* Fixed strip along the very top of the page - see LoadingRibbonContext.tsx. */
+
+.loading-ribbon-slot {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2000;
+  pointer-events: none;
+}
+
+.loading-ribbon-slot__bar {
+  pointer-events: none;
+}

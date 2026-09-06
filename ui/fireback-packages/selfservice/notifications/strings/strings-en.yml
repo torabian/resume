@@ -1,0 +1,8 @@
+content:
+  notifications:
+    title: Notifications
+    empty: You have no notifications yet.
+    markAsRead: Mark as read
+    unreadBadge: unread
+    markedAsRead: Notification marked as read.
+    loadError: Could not load your notifications.

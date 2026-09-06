@@ -1,0 +1,17 @@
+content:
+  menuTitle: Members
+  member:
+    name: Name
+    role: Role
+    actions: Actions
+    changeRole: Change role
+    remove: Remove
+    removeConfirmTitle: Remove member
+    removeConfirmDescription: Are you sure you want to remove this member from the
+      workspace? They will lose access immediately.
+    removeSuccess: Member removed.
+    changeRoleTitle: Change role
+    changeRoleHint: Select the new role to assign to this member.
+    changeRoleLabel: Role
+    changeRoleSuccess: Role updated.
+    cannotRemoveSelf: You cannot remove your own membership from the workspace.

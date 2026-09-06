@@ -1,0 +1,98 @@
+import { useUiState } from "@fireback/ui-core/hooks/uiStateContext";
+
+import { useEffect, useRef, useState } from "react";
+
+import { Panel } from "react-resizable-panels";
+import { ResizeHandle } from "@fireback/ui-core/components/layouts/ResizeHandle";
+import Sidebar from "@fireback/ui-core/components/layouts/Sidebar";
+import { AppConfigProvider } from "@fireback/ui-core/hooks/appConfigTools";
+import { BUILD_VARIABLES } from "@fireback/ui-core/hooks/build-variables";
+import { detectDeviceType } from "@fireback/ui-core/hooks/deviceInformation";
+
+// Percentage width the sidebar opens to when there's no saved preference yet
+// (a first-time visitor) - matches the fallback useResizeThreshold(768, ...)
+// already resizes to elsewhere in this app.
+const DEFAULT_SIDEBAR_SIZE = 20;
+
+// react-resizable-panels only understands sizes as a percentage of the
+// panel group, so a flat "never wider than 300px" cap has to be re-expressed
+// as a percentage of the current window width - which changes as the window
+// resizes, so it's recomputed on every `resize` rather than calculated once.
+const MAX_SIDEBAR_WIDTH_PX = 300;
+
+const getMaxSizePercent = () =>
+  (MAX_SIDEBAR_WIDTH_PX / window.innerWidth) * 100;
+
+const getSize = () => {
+  if (detectDeviceType().isMobileView) {
+    return 0;
+  }
+
+  const savedValue = localStorage.getItem("sidebarState");
+  if (savedValue === null) {
+    // No preference saved yet - open with a sensible default rather than
+    // collapsed. Bug fix: `parseFloat(null-ish) <= 0` used to be true here,
+    // which collapsed the sidebar for every first-time visitor - the exact
+    // same outcome as toggleSidebar()'s own "explicitly collapsed" sentinel
+    // (saved as the string "-1"), even though nothing had actually been
+    // saved at all yet.
+    return DEFAULT_SIDEBAR_SIZE;
+  }
+
+  const m = parseFloat(savedValue);
+
+  if (m <= 0) {
+    return 0;
+  }
+
+  // Don't reopen wider than the 300px cap either, in case the persisted
+  // value predates it (or was saved at a wider window and would exceed
+  // 300px at this one).
+  return Math.min(m * 1.3, getMaxSizePercent());
+};
+
+export const SidebarPanel = () => {
+  const { setSidebarRef, persistSidebarSize } = useUiState();
+  const panelRef = useRef(null);
+  const [maxSize, setMaxSize] = useState(getMaxSizePercent);
+
+  useEffect(() => {
+    const onWindowResize = () => setMaxSize(getMaxSizePercent());
+    window.addEventListener("resize", onWindowResize);
+    return () => window.removeEventListener("resize", onWindowResize);
+  }, []);
+
+  const onRef = (ref) => {
+    panelRef.current = ref;
+    setSidebarRef(panelRef.current);
+  };
+
+  return (
+    <Panel
+      style={{
+        position: "relative",
+        overflowY: "hidden",
+        height: "100vh",
+      }}
+      defaultSize={getSize()}
+      maxSize={maxSize}
+      ref={onRef}
+    >
+      <AppConfigProvider
+        initialConfig={{
+          remote: BUILD_VARIABLES.REMOTE_SERVICE,
+        }}
+      >
+        <Sidebar miniSize={false} />
+      </AppConfigProvider>
+
+      {!detectDeviceType().isMobileView && (
+        <ResizeHandle
+          onDragComplete={() => {
+            persistSidebarSize(panelRef.current?.getSize());
+          }}
+        />
+      )}
+    </Panel>
+  );
+};

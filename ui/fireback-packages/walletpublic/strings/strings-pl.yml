@@ -1,0 +1,62 @@
+extends: []
+content:
+  help:
+    myWallets: Twoje własne portfele, po jednym na każdą walutę, w której zostałeś
+      skonfigurowany (lub który sam utworzyłeś, jeśli samodzielne tworzenie portfela
+      jest włączone). Saldo zmienia się wyłącznie przez doładowanie, zakup, przelew
+      między użytkownikami lub realizację karty podarunkowej - nigdy nie można go
+      edytować bezpośrednio. Użyj przycisku "Doładuj" przy dowolnym wierszu, aby dodać
+      środki przez bramkę płatniczą; otwórz portfel, aby zobaczyć jego pełną historię
+      transakcji.
+    walletHistory: Tylko do odczytu, przeznaczony wyłącznie do dopisywania rejestr
+      każdej zmiany salda tego portfela - doładowania, zakupy, przelewy przychodzące
+      i wychodzące, realizacje kart podarunkowych, zwroty oraz każda ręczna korekta
+      wprowadzona przez administratora, każda z własnym kierunkiem, kwotą i bieżącym
+      saldem. Nic tu nie można edytować ani usuwać - jeśli coś wymaga korekty, dodawany
+      jest zamiast tego nowy, kompensujący wpis, dzięki czemu historia zawsze prawdziwie
+      opowiada, jak saldo doszło do obecnego stanu.
+  myWallets:
+    amount: Kwota
+    amountHint: Kwota do doładowania jako liczba dziesiętna w jednostkach podrzędnych
+      (np. centy dla USD).
+    archiveTitle: Moje portfele
+    attemptCreated: 'Utworzono próbę płatności, status:'
+    back: Powrót do moich portfeli
+    balance: Saldo
+    balanceAfter: Saldo po operacji
+    clientSecretNotice: Ta bramka wymaga dodatkowego kroku potwierdzenia w przeglądarce,
+      który nie jest tu jeszcze obsługiwany - próba płatności została utworzona, ale
+      trzeba ją dokończyć w inny sposób.
+    createDisabled: Tworzenie własnego portfela jest obecnie wyłączone. Skontaktuj
+      się z administratorem, jeśli potrzebujesz nowego.
+    createdAt: Data
+    currency: Waluta
+    direction: Kierunek
+    directionCredit: Uznanie
+    directionDebit: Obciążenie
+    gateway: Bramka płatności
+    historyTitle: Historia transakcji
+    isDefault: Domyślny
+    label: Etykieta
+    newWallet: Nowy portfel
+    noGatewayForCurrency: Żadna bramka płatności nie obsługuje obecnie waluty tego
+      portfela.
+    note: Notatka
+    ownerType: Właściciel
+    ownerUser: Ty
+    ownerWorkspace: Przestrzeń robocza
+    reason: Powód
+    redirecting: Przekierowywanie do bramki płatności...
+    returnUrl: URL powrotu
+    returnUrlHint: Dokąd wrócić po zakończeniu płatności. Wymagane dla bramek przekierowujących
+      przeglądarkę w celu dokończenia płatności.
+    selectGateway: Wybierz metodę płatności...
+    status: Status
+    submit: Rozpocznij doładowanie
+    submitting: Rozpoczynanie...
+    success: Doładowanie rozpoczęte.
+    topUp: Doładuj
+    topupDescription: Doładuj ten portfel za pośrednictwem bramki płatności.
+    topupTitle: Doładowanie portfela
+    view: Podgląd
+    wallet: Portfel

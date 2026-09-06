@@ -1,0 +1,29 @@
+content:
+  regionalContents:
+    archiveTitle: Treści regionalne
+    editRegionalContent: Edytuj treść regionalną
+    newRegionalContent: Nowa treść regionalna
+    keyGroup: Grupa kluczy
+    keyGroupHint: Do jakiego rodzaju wiadomości używana jest ta treść.
+    keyGroupSmsOtp: Jednorazowy kod SMS
+    keyGroupEmailOtp: Jednorazowy kod e-mail
+    region: Region
+    regionHint: Region lub lokalizacja, do której odnosi się ta treść, np. any, us, eu lub asia/*. Użyj any, jeśli nie musisz celować w konkretny region.
+    uniqueId: Identyfikator
+    definitionsTitle: Definicje
+    definitionsHint: Jeden wpis na każdy język, na który przetłumaczona jest ta treść. Najpierw zapisz ten rekord, aby dodawać definicje.
+    addDefinition: Dodaj definicję
+    newDefinition: Nowa definicja
+    editDefinition: Edytuj definicję
+    noDefinitions: Brak definicji. Dodaj jedną, aby ta treść miała rzeczywisty tekst.
+    locale: Język
+    localeHint: Kod języka, w którym napisana jest ta definicja, np. en, fa lub pl. W przypadku braku dopasowania do języka użytkownika stosowany jest angielski.
+    title: Tytuł
+    titleHint: Opcjonalny temat - używany tylko dla treści typu e-mail.
+    content: Treść
+    contentHint: Treść szablonu wysyłana do użytkownika. Obsługuje składnię szablonów Go do wstawiania dynamicznych wartości, np. {{.Otp}} dla kodu jednorazowego.
+    deleteDefinitionConfirmTitle: Usuń definicję
+    deleteDefinitionConfirmDescription: Czy na pewno chcesz usunąć definicję "{locale}"? Tej operacji nie można cofnąć.
+    definitionCreated: Definicja utworzona
+    definitionUpdated: Definicja zaktualizowana
+    definitionDeleted: Definicja usunięta

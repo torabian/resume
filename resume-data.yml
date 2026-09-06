@@ -1,0 +1,526 @@
+# Resume content, shaped to match the entities defined in resume.emi.yml.
+#
+# This is plain seed/import data, not an .emi.yml definition file - it's meant
+# to be loaded by whatever script populates ResumeEntity/CompanyEntity/etc.
+# rows (or feeds a PDF/LaTeX renderer directly).
+#
+# Cross-references between sections use plain string keys instead of numeric
+# ids (workExperiences[].company points at companies[].key, and every child
+# section implicitly belongs to the one `resume` below) - resolve these to
+# real foreign keys/UniqueIds at import time.
+
+resume:
+  fullName: Ali Torabi
+  headline: Software Engineer
+  summary: >
+    I build digital products, share knowledge, and help others create. I'm
+    deeply passionate about programming, engineering, and continuous learning
+    — always pushing to master new technologies and understand how things
+    work from the ground up. I enjoy bridging practical skills with digital
+    innovation, from building software frameworks like Fireback to welding,
+    electrical systems, and construction. For me, creating — whether it's
+    code, a tool, or a physical structure — is both a craft and a lifelong
+    pursuit of excellence. Started programming at age 9, I love to build and
+    code constantly, which has been without stop through most of my life and
+    career.
+
+
+    Unique capabilities:
+
+    - Conduct technical interviews and assess candidates during the
+    recruitment process
+
+    - Lead engineering teams or operate as a senior individual contributor
+    within existing teams
+
+    - Rescue delayed or high-risk projects by stabilizing scope and driving
+    timely delivery
+
+    - Build and deliver products from scratch as a lead developer, from
+    concept to production
+
+    - Collaborate effectively with cross-functional teams as a strong and
+    reliable team player
+  location: Poland
+  language: en
+  isPrimary: true
+
+companies:
+  - key: vaillant
+    name: Vaillant GmbH
+    industry: Gas and heat pump manufacturer
+    location: Germany
+
+  - key: tomsanat
+    name: TOMSANAT LLC
+    industry: Insurance / ERP SaaS company
+
+  - key: visa
+    name: VISA
+    industry: Major European investment bank (banking platform)
+
+  - key: pixelplux
+    name: PIXELPLUX
+    industry: Software product studio (US market clients)
+
+  - key: webelian
+    name: WEBELIAN
+    industry: Software engineering studio (global clients)
+
+  - key: netware
+    name: NETWARE STUDIO INC
+    industry: Software & IoT solutions company
+
+  - key: lohebartar
+    name: Lohebartar Publication
+    industry: Educational software publisher
+
+workExperiences:
+  - company: vaillant
+    jobTitle: Lead Mobile Developer
+    employmentType: fullTime
+    startDate: "2024-02-01"
+    endDate: "2026-03-01"
+    isCurrent: false
+    summary: >
+      Development of applications to control heat pumps and gas boilers for a
+      German top efficiency heating products manufacturer. Created an
+      Installator app for servicing/commissioning and an End user app for
+      tenants to manage temperature, schedules, and alarms.
+    achievements:
+      - Implementing search for fault codes and first-time process handling
+      - Integrating live monitoring directly via EBUS controllers for portable tablets
+      - Enabling end users to set room temperatures, weekly plans, and check system status
+      - Supporting API Developer program features like external pumps and cascading
+
+  - company: tomsanat
+    jobTitle: Software Engineer
+    employmentType: fullTime
+    startDate: "2023-02-01"
+    endDate: "2024-02-01"
+    isCurrent: false
+    summary: >
+      Insurance company internal ERP tooling SaaS product built from scratch
+      to convert insurance leads into customers. Created "Fireback", an
+      opinionated backend framework (Gin, Laravel, Nest.js replacement)
+      supporting rapid UI generation and complex routing.
+    achievements:
+      - Creating a single executable CLI binary to reduce backend deployment pain
+      - Implementing frontend lazy loading, custom styling, search functionality, and keyboard accessibility
+      - Engineering the Fireback framework with multilingual support, SQL Pivot, gRPC, and built-in Socket entities
+
+  - company: visa
+    jobTitle: Front-end Engineer
+    employmentType: fullTime
+    startDate: "2021-06-01"
+    endDate: "2023-05-01"
+    isCurrent: false
+    summary: >
+      Highly complex front-end banking tool for auditing currency exchange
+      operations for a major European investment bank.
+    achievements:
+      - Handling rendering of nested objects with column locking and drag-and-drop reordering
+      - Engineering advanced searching, filtering, and backend-driven cascading custom sorts
+      - Designing multiple editing capabilities, view snapshots, and CSV/PDF export generation
+      - Creating expandable rows for extra details while maintaining strict visual alignment
+
+  - company: pixelplux
+    jobTitle: React Native Developer & Team Lead
+    employmentType: fullTime
+    startDate: "2019-06-01"
+    endDate: "2023-05-01"
+    isCurrent: false
+    summary: >
+      Led a team of 5-7 developers building multiple large-scale products for
+      US markets, including real estate, education, healthcare routing, solar
+      energy monitoring, accounting MVP systems, and esports tournament
+      platforms.
+    achievements:
+      - Mentoring developers and leading engineering teams across multiple products
+      - Implementing CI/CD pipelines using CircleCI and managing AppStore/Google Play deployments
+      - Integrating Swagger and gRPC services for scalable backend communication
+      - Building AcademyX system services with ABAC permissions, Zoom/Google Meet integration, and CI/CD binary installers
+      - Designing Teamtelefon system with call routing algorithms, contact sync, and Firebase serverless architecture
+      - Developing EverVolt dashboard with D3/SVG interactive charts, MPPT/battery logic, and hardware data synchronization
+      - Building Gizer esports platform with NGRX state management, canvas/Lottie animations, and real-time webhook integrations
+      - Creating Minifirma MVP with SQLite storage and camera-based invoice processing modules
+
+  - company: webelian
+    jobTitle: Full-stack Engineer
+    employmentType: fullTime
+    startDate: "2018-04-01"
+    endDate: "2019-06-01"
+    isCurrent: false
+    summary: >
+      Worked on diverse full-stack systems including airport check-in kiosk
+      interfaces, industrial jewelry engraving tools for SISMA machines,
+      open-source UI components, and real-time network latency visualization
+      systems used across Japan and the US.
+    achievements:
+      - Designing airport kiosk UI with on-screen keyboard, strict tab navigation, joystick control logic, and accessibility audio feedback
+      - Replacing legacy jQuery systems with React and building advanced Canvas-based text rendering and collision/protrusion detection for engraving tools
+      - Developing real-time D3 heatmap systems for network monitoring, integrating time-series APIs, and managing state with React-Redux and RxJS
+      - Maintaining and contributing to open-source TimePicker component including issue handling and pull request management
+
+  - company: netware
+    jobTitle: PHP Developer
+    employmentType: fullTime
+    startDate: "2015-06-01"
+    endDate: "2017-02-01"
+    isCurrent: false
+    summary: >
+      Developed multi-purpose localized WordPress templates (tkpersian) to
+      streamline project creation and built full-stack IoT smart home
+      solutions integrating embedded devices and web systems.
+    achievements:
+      - "Engineering reusable WordPress theme components extending the Underscores (_tk) open-source framework"
+      - Designing hardware/software systems to access IoT devices over local networks
+      - Building administrative dashboard tools for device management
+      - Developing drivers connecting embedded devices with computer systems
+
+  - company: lohebartar
+    jobTitle: C# & PHP Developer
+    employmentType: fullTime
+    startDate: "2009-01-01"
+    endDate: "2014-04-01"
+    isCurrent: false
+    summary: >
+      Windows-based examination desktop application originally built
+      independently and later adopted by Lohebartar Publication for school
+      entrance exams, distributed at scale with over 100,000 copies sold.
+    achievements:
+      - Handling end-to-end technical business implementation using C# and Multimedia Builder
+      - Developing an online PHP activation code tracking system
+      - Building a lightweight internal CRM for managing students and teachers
+
+skills:
+  # Programming languages
+  - name: Go
+    category: language
+    level: expert
+    description: >
+      Extremely passionate about Go as both an ecosystem and a language —
+      simple, fast, compiled, and efficient. Built and contributed to dozens
+      of projects. Favorite features include cross-compiling, goroutines,
+      and its simple package management system. Used most for desktop
+      applications, CLI tools, shared libraries, web servers, and
+      database-related tasks. Author of Fireback and EmiCompiler.
+
+  - name: JavaScript / TypeScript
+    category: language
+    level: expert
+    description: >
+      Countless lines written across node.js, browser, electron.js, react
+      native, ionic, and vanilla JavaScript, including years of jQuery and
+      custom library maintenance.
+
+  - name: PHP
+    category: language
+    level: advanced
+    description: >
+      Career-starting language (pre-2006). Used on proprietary CMS/CRM
+      systems and WordPress custom theme development; later migrated a major
+      commercial platform's internal services from PHP into Golang. Retired
+      from day-to-day use but experience remains wide.
+
+  - name: C
+    category: language
+    level: advanced
+    description: >
+      Used across microcontroller projects, writing reliable, memory-leak
+      free code for electronic devices. Mostly focused on the esp-idf
+      platform.
+
+  # Frameworks
+  - name: Angular (1...18)
+    category: framework
+    level: advanced
+    description: >
+      Started with AngularJS in plain JavaScript, shipped 2 AngularJS
+      projects including build system/CLI tooling, then rewrote into
+      Angular 2. Worked on many commercial projects with Angular and Angular
+      Material (CDK).
+
+  - name: React
+    category: framework
+    level: expert
+    description: >
+      Working with React for about a decade, across many commercial
+      projects and its wider ecosystem, alongside React Native.
+
+  - name: React Native
+    category: framework
+    level: expert
+    description: >
+      Involved since its early days; built dozens of apps across many
+      categories over the past 10 years.
+
+  - name: ESP-IDF
+    category: framework
+    level: advanced
+    description: >
+      Deep experience with ESP series microcontrollers using vendor SDKs.
+      Advanced Wi-Fi (station/AP, provisioning, hotspot), BLE (GATT
+      server/client), dual-mode connectivity for IoT, FreeRTOS-based
+      development, low-power modes, OTA updates, TLS, MQTT/HTTP, peripheral
+      integration (GPIO, UART, SPI, I2C, ADC), and real-time device control.
+
+  - name: Node.js ecosystem
+    category: framework
+    level: expert
+    description: >
+      Backend-focused: pure node.js scripting, Sails.js, and later Nest.js
+      (able to fully conduct an entire project in Nest.js).
+
+  # Databases
+  - name: MySQL
+    category: database
+    level: expert
+    description: >
+      Go-to database, used with PHP historically. Worked with advanced
+      features and maintained databases up to 100GB. Prefers writing raw
+      queries over ORM.
+
+  - name: SQLite
+    category: database
+    level: advanced
+    description: >
+      Used in mobile applications and microcontrollers where it's the only
+      viable storage option, including storing files in it. Compatible
+      enough with MySQL to run similar structures on both cloud backend and
+      microcontroller projects with small amounts of RAM.
+
+  - name: MongoDB
+    category: database
+    level: intermediate
+    description: >
+      Used in a couple of projects since its inception. Comfortable with its
+      strengths/limits for unknown data structures or snapshot-style data,
+      though not an advanced user.
+
+  # Libraries / tools
+  - name: Cypress
+    category: tool
+    level: advanced
+    description: >
+      Used for e2e testing of front-end projects (Angular, React, websites)
+      and occasionally backend integration tests.
+
+  - name: Three.js / React Three Fiber
+    category: tool
+    level: advanced
+    description: >
+      Building interactive 3D web applications and immersive VR/AR
+      experiences, dynamic scenes, and 3D model/animation integration.
+
+  - name: Docusaurus
+    category: tool
+    level: advanced
+    description: >
+      Building and maintaining documentation platforms: versioned docs,
+      custom themes/plugins, Markdown/MDX authoring, search, i18n, and
+      CI/CD deployment.
+
+  - name: Katex
+    category: tool
+    level: intermediate
+    description: >
+      Formula-writing library used in a question-bank product to replace
+      embedded formula images with real typeset formulas.
+
+  - name: Maps & Geography (Google Maps, OpenStreetMap)
+    category: tool
+    level: advanced
+    description: >
+      Custom markers, clustering, interactive overlays (polylines, polygons,
+      drawing tools), geocoding/reverse geocoding, address autocomplete, and
+      coordinate transformations across React, React Native, Angular, and
+      vanilla JavaScript.
+
+  - name: Jest / React Testing Library
+    category: tool
+    level: advanced
+    description: >
+      Favors testing pure logic/calculations (e.g. time-series operations)
+      and component rendering logic in React and React Native.
+
+  - name: TinyMCE
+    category: tool
+    level: advanced
+    description: >
+      Favorite rich text editor across two decades of projects; notably
+      integrated Katex formula writing into it.
+
+  # Software / design tools
+  - name: Autodesk Fusion
+    category: tool
+    level: advanced
+    description: >
+      CAM/electrical design tool; able to create industrial components
+      end-to-end including blueprints and toolpaths for machining parts.
+
+  - name: KiCad
+    category: tool
+    level: advanced
+    description: >
+      Favorite open-source PCB design tool, used extensively for 2-layer PCB
+      prototypes for clients and hobby work.
+
+  # Protocols / standards / processes
+  - name: MQTT
+    category: protocol
+    level: expert
+    description: >
+      Building MQTT-centric systems requiring real-time full-duplex
+      communication between servers, devices, and clients; implemented both
+      clients and on-premise brokers. Actively used in own products,
+      including Meshora.
+
+  - name: Bluetooth (BLE)
+    category: protocol
+    level: advanced
+    description: >
+      Bluetooth Classic and BLE across ESP microcontrollers, STM-based
+      systems, Ubuntu, and React Native. GATT client/server architectures,
+      device provisioning, pairing/bonding, low-level drivers and vendor
+      SDKs.
+
+  - name: E-Commerce Systems
+    category: other
+    level: advanced
+    description: >
+      WooCommerce and PrestaShop, later applied to custom-built platforms on
+      Node.js and Golang: inventory management, caching strategies, custom
+      fields, recursive category structures, and database modeling for
+      scalable commerce.
+
+  - name: OpenTherm
+    category: protocol
+    level: advanced
+    description: >
+      IoT protocol experience as both Master and Slave: communication
+      layers, simulations, and debugging on real boiler systems.
+
+  - name: Internationalization (i18n)
+    category: other
+    level: advanced
+    description: >
+      Building internationalized systems across web, mobile, desktop, and
+      documentation platforms: RTL/LTR support, custom calendar systems, and
+      multilingual database architectures for region-specific configs.
+
+  - name: WebSocket
+    category: protocol
+    level: advanced
+    description: >
+      From early long-polling chat systems to WebSocket-based real-time
+      systems for text/binary communication, load-balanced notifications,
+      and audio streaming.
+
+  - name: App Store & Google Play Management
+    category: other
+    level: advanced
+    description: >
+      Managed full application release pipelines from codebase to
+      production stores: CI/CD setup, store configuration, Apple approval
+      processes, and compliance requirements.
+
+  - name: Cross-platform Data Synchronization
+    category: other
+    level: expert
+    description: >
+      One of the strongest system design skills: synchronizing data layers
+      across backend, mobile, desktop, and web while preserving a unified
+      API structure and offline capability, via selective API design and
+      compiled Go/C components as system services.
+
+  # Construction skills
+  - name: Heating Systems (G3)
+    category: other
+    level: advanced
+    description: >
+      Design and implementation of underfloor heating, gas systems, and
+      multi-room setups (Vaillant, Viessmann). Heat load calculations,
+      hydraulic system design, PEX piping layouts (manifolds, pumps,
+      boilers), zoned and smart control systems.
+
+  - name: Electrical Systems (G1)
+    category: other
+    level: advanced
+    description: >
+      Residential electrical installations: circuit design, load
+      calculation, panel layout, wiring, technical schematics, protective
+      device selection, and safety-standard compliance.
+
+  - name: Smart Home Systems
+    category: other
+    level: advanced
+    description: >
+      Design and implementation of smart home solutions: lighting, heating,
+      and security automation; IoT devices, sensors, and controllers for
+      remote access, energy optimization, and scalable systems.
+
+projects:
+  - name: Fireback
+    role: Creator
+    summary: >
+      One of the most opinionated and complex Go frameworks, accelerating
+      commercial app development. A Gin/Laravel/Nest.js-style backend
+      framework with multilingual support, SQL Pivot, gRPC, and built-in
+      Socket entities.
+    url: https://github.com/torabian/fireback
+    isOngoing: true
+    technologies:
+      - Go
+      - gRPC
+      - SQL
+
+  - name: EmiCompiler
+    role: Creator
+    summary: >
+      A Backend-for-Frontend compiler with automatic SDK generation across
+      multiple target languages.
+    url: https://torabian.github.io/emi/playground
+    isOngoing: true
+    technologies:
+      - Go
+
+  - name: Izadom
+    role: Creator
+    summary: >
+      3D design tool demo for rebar joins and column design, built with
+      Three.js / React Three Fiber.
+    url: https://torabian.github.io/izadom
+    isOngoing: true
+    technologies:
+      - Three.js
+      - React Three Fiber
+
+certifications:
+  - name: C and C+E driving license
+    issuingOrganization: EU
+
+  - name: Motorboat and sailboat license
+    issuingOrganization: Poland
+
+  - name: PADI diving license
+    issuingOrganization: PADI
+
+languages:
+  - name: Persian (Farsi)
+    proficiency: nativeOrBilingual
+
+  - name: English
+    proficiency: fullProfessional
+
+  - name: Polish
+    proficiency: limitedWorking
+
+  - name: German
+    proficiency: elementary
+
+  - name: Turkish
+    proficiency: elementary
+
+  - name: Russian
+    proficiency: elementary
