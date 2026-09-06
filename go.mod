@@ -4,7 +4,7 @@ go 1.25.1
 
 require (
 	github.com/gin-gonic/gin v1.12.0
-	github.com/torabian/emi v1.5.1
+	github.com/torabian/emi v1.6.0
 	github.com/torabian/fireback v1.3.2
 	github.com/urfave/cli/v3 v3.8.0
 	gopkg.in/yaml.v3 v3.0.1

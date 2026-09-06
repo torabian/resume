@@ -45,7 +45,14 @@ resume:
   language: en
   isPrimary: true
 
+targetPositions:
+  - name: Full-stack Developer
+
 companies:
+  - key: stxnext
+    name: STX NEXT
+    industry: Software consultancy
+
   - key: vaillant
     name: Vaillant GmbH
     industry: Gas and heat pump manufacturer
@@ -75,7 +82,32 @@ companies:
     name: Lohebartar Publication
     industry: Educational software publisher
 
+  - key: seekasia
+    name: SEEK Asia
+    industry: Classifieds / recruitment platform
+
+  - key: pordoweb
+    name: Pordo Web
+    industry: Web agency (CMS, CRM, B2B commerce)
+
 workExperiences:
+  - company: stxnext
+    jobTitle: JavaScript Developer
+    employmentType: fullTime
+    startDate: "2026-04-01"
+    endDate: "2026-07-01"
+    isCurrent: false
+    summary: >
+      Engineered a globally distributed MVP CDN and Video CDN platform
+      allowing clients to run their proprietary services behind scalable
+      edge networks. Developed an interactive 3D architectural modeling
+      software focused on single-house construction computation.
+    achievements:
+      - Architecting and deploying a distributed CDN and Video CDN MVP utilizing Golang, HAProxy, and Apache Traffic Server
+      - Enabling seamless edge-routing integration for users to run external services behind a high-performance global delivery network
+      - Engineering a 3D architectural engine utilizing React and Three.js to compute and render precise constructional elements
+      - Refactoring and updating core backend computational services to optimize 3D simulations for single-house development
+
   - company: vaillant
     jobTitle: Lead Mobile Developer
     employmentType: fullTime
@@ -162,6 +194,20 @@ workExperiences:
       - Developing real-time D3 heatmap systems for network monitoring, integrating time-series APIs, and managing state with React-Redux and RxJS
       - Maintaining and contributing to open-source TimePicker component including issue handling and pull request management
 
+  - company: seekasia
+    jobTitle: Full-stack Developer
+    employmentType: fullTime
+    startDate: "2017-02-01"
+    endDate: "2018-02-01"
+    isCurrent: false
+    summary: >
+      Upgraded, tuned, and refactored existing code bases and managed
+      deployment across diverse global targets.
+    achievements:
+      - Deploying single codebases across multiple global targets implementing strict Test-Driven Development (TDD) principles
+      - Managing large-scale distributed application traffic utilizing AI solutions alongside data scientists
+      - Monitoring cloud deployment lifecycles and consistently updating core technical dependencies
+
   - company: netware
     jobTitle: PHP Developer
     employmentType: fullTime
@@ -177,6 +223,21 @@ workExperiences:
       - Designing hardware/software systems to access IoT devices over local networks
       - Building administrative dashboard tools for device management
       - Developing drivers connecting embedded devices with computer systems
+
+  - company: pordoweb
+    jobTitle: Node.js & PHP Engineer
+    employmentType: fullTime
+    startDate: "2013-03-01"
+    endDate: "2015-06-01"
+    isCurrent: false
+    summary: >
+      Facilitated the rewrite of a dedicated CMS to improve reliability,
+      implemented an internal CRM solution, and developed a comprehensive
+      B2B store-in-store online market platform ("30t4u" and "Intachi").
+    achievements:
+      - Managing server backend deployments and aggregating cross-team analytics for distributed platforms
+      - Optimizing complex MySQL queries powering B2B tracking, advanced reporting, and product comparisons
+      - Creating dynamic product form builders, frontend interfaces, and distributed search mechanisms
 
   - company: lohebartar
     jobTitle: C# & PHP Developer
@@ -195,7 +256,8 @@ workExperiences:
 
 skills:
   # Programming languages
-  - name: Go
+  - key: go
+    name: Go
     category: language
     level: expert
     description: >
@@ -206,7 +268,8 @@ skills:
       applications, CLI tools, shared libraries, web servers, and
       database-related tasks. Author of Fireback and EmiCompiler.
 
-  - name: JavaScript / TypeScript
+  - key: js-ts
+    name: JavaScript / TypeScript
     category: language
     level: expert
     description: >
@@ -241,14 +304,16 @@ skills:
       Angular 2. Worked on many commercial projects with Angular and Angular
       Material (CDK).
 
-  - name: React
+  - key: react
+    name: React
     category: framework
     level: expert
     description: >
       Working with React for about a decade, across many commercial
       projects and its wider ecosystem, alongside React Native.
 
-  - name: React Native
+  - key: react-native
+    name: React Native
     category: framework
     level: expert
     description: >
@@ -461,7 +526,8 @@ skills:
       remote access, energy optimization, and scalable systems.
 
 projects:
-  - name: Fireback
+  - key: fireback
+    name: Fireback
     role: Creator
     summary: >
       One of the most opinionated and complex Go frameworks, accelerating
@@ -475,7 +541,8 @@ projects:
       - gRPC
       - SQL
 
-  - name: EmiCompiler
+  - key: emicompiler
+    name: EmiCompiler
     role: Creator
     summary: >
       A Backend-for-Frontend compiler with automatic SDK generation across
@@ -517,10 +584,22 @@ languages:
     proficiency: B1
 
   - name: German
-    proficiency: A1
+    proficiency: B1
 
   - name: Turkish
-    proficiency: A1
+    proficiency: B1
 
   - name: Russian
     proficiency: A1
+
+# Which skills/projects (by their own `key`, above) this resume's `content`
+# field points at - the same {kind, uniqueId, label} array the Resume
+# Creator screen's drag-and-drop picker writes (see Seeder.go's own doc
+# comment on Content, and Resume.emi.yml's on the `content` field itself).
+content:
+  - go
+  - js-ts
+  - react
+  - react-native
+  - fireback
+  - emicompiler

@@ -11,16 +11,25 @@ package resume
 // build on: given a Resume row, produce correct, compilable .tex text.
 //
 // What this covers: the Resume's own profile fields (fullName/headline/
-// summary/contact info) plus the Skills and Projects picked for it via the
+// summary/contact info), the Skills and Projects picked for it via the
 // Resume Creator screen (`resume.content` - see ResumeCreator.tsx's own
 // PickerItem shape, {kind, uniqueId, label}, which is exactly what's
-// unmarshaled below). What it doesn't: WorkExperience/Education/
-// Certification/Language - none of those are referenced by `content` today
-// (the picker only ever offered Skills/Projects - see ResumeCreator.tsx's
-// own header comment), so there's nothing here yet to pull them in from.
-// Wiring a second picker (or extending this one) to also reference those,
-// and rendering them here, is the natural next step once this first pass is
-// proven out.
+// unmarshaled below), plus - unlike `content` - every WorkExperience,
+// Certification and Language row in the database, unfiltered. That
+// asymmetry is deliberate, not an oversight: none of those three are
+// referenced by `content` at all (the Resume Creator picker only ever
+// offered Skills/Projects - see ResumeCreator.tsx's own header comment),
+// and none of them carry a `resume: one` link back to a specific resume
+// either (see Resume.emi.yml's own top-of-file note on why that field was
+// dropped from every section entity) - there is no "this resume's own work
+// experience" query possible today, only "every work experience anyone
+// ever recorded". For this repo's actual use (one person, one resume, no
+// multi-tenant data) that's exactly the same set, so browsing everything
+// unscoped produces the right document - it would need real scoping (or a
+// second picker, the same shape `content` already is for skills/projects)
+// before this could serve more than one resume's worth of data correctly.
+// Education is the one entity left out even from that - Resume.emi.yml's
+// seeder has no sample data for it yet, not a deliberate omission.
 //
 // Template: plain `article` class with `geometry`/`enumitem`/`titlesec`/
 // `hyperref` - packages present in any base texlive/MiKTeX install, no
@@ -29,6 +38,7 @@ package resume
 // this file.
 import (
 	"encoding/json"
+	"sort"
 	"strings"
 
 	"github.com/torabian/fireback/modules/fireback"
@@ -120,7 +130,28 @@ func ResumeToLatexAction(c resumedefs.ResumeToLatexActionRequest) (*resumedefs.R
 		}
 	}
 
-	source := latexDocument(entity, locale, skills, projects)
+	// See this file's own header comment on why these three are browsed in
+	// full rather than resolved through `content` the way skills/projects
+	// are - there's no per-resume scoping left on any of them to filter by.
+	workExperiences, _, err := resumedefs.WorkExperienceEntityActions.Browse(tx, resumedefs.WorkExperienceBrowseActionQueryFromString(""), "")
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(workExperiences, func(i, j int) bool {
+		return workExperiences[i].StartDate > workExperiences[j].StartDate
+	})
+
+	certifications, _, err := resumedefs.CertificationEntityActions.Browse(tx, resumedefs.CertificationBrowseActionQueryFromString(""), "")
+	if err != nil {
+		return nil, err
+	}
+
+	languages, _, err := resumedefs.LanguageEntityActions.Browse(tx, resumedefs.LanguageBrowseActionQueryFromString(""), "")
+	if err != nil {
+		return nil, err
+	}
+
+	source := latexDocument(entity, locale, skills, projects, workExperiences, certifications, languages)
 
 	return &resumedefs.ResumeToLatexActionResponse{
 		Payload: fireback.GResponseSingleItem(resumedefs.ResumeLatexDto{Source: source}),
@@ -136,6 +167,9 @@ func latexDocument(
 	locale string,
 	skills []*resumedefs.SkillEntity,
 	projects []*resumedefs.ProjectEntity,
+	workExperiences []*resumedefs.WorkExperienceEntity,
+	certifications []*resumedefs.CertificationEntity,
+	languages []*resumedefs.LanguageEntity,
 ) string {
 	var b strings.Builder
 
@@ -185,6 +219,34 @@ func latexDocument(
 		b.WriteString("\\section*{Summary}\n" + summary + "\n\n")
 	}
 
+	if len(workExperiences) > 0 {
+		b.WriteString("\\section*{Work Experience}\n")
+		for _, w := range workExperiences {
+			line := "\\textbf{" + texLocale(w.JobTitle, locale) + "}"
+			if company := texLocale(w.Company, locale); company != "" {
+				line += " -- " + company
+			}
+			dateRange := string(w.StartDate)
+			if end := string(w.EndDate); end != "" {
+				dateRange += " -- " + end
+			} else {
+				dateRange += " -- Present"
+			}
+			b.WriteString(line + " \\hfill \\textit{" + tex(dateRange) + "}\\\\\n")
+			if loc := texLocale(w.Location, locale); loc != "" {
+				b.WriteString("\\textit{" + loc + "}\\\\\n")
+			}
+			if achievements := w.Achievements.OrDefault(nil); len(achievements) > 0 {
+				b.WriteString("\\begin{itemize}[leftmargin=*, itemsep=1pt, parsep=0pt, topsep=2pt]\n")
+				for _, a := range achievements {
+					b.WriteString("\\item " + tex(a) + "\n")
+				}
+				b.WriteString("\\end{itemize}\n")
+			}
+			b.WriteString("\\vspace{0.4em}\n\n")
+		}
+	}
+
 	if len(skills) > 0 {
 		b.WriteString("\\section*{Skills}\n")
 		b.WriteString("\\begin{itemize}[leftmargin=*, itemsep=2pt, parsep=0pt]\n")
@@ -218,6 +280,32 @@ func latexDocument(
 			}
 		}
 		b.WriteString("\\end{itemize}\n\n")
+	}
+
+	if len(certifications) > 0 {
+		b.WriteString("\\section*{Certifications \\& Licenses}\n")
+		b.WriteString("\\begin{itemize}[leftmargin=*, itemsep=2pt, parsep=0pt]\n")
+		for _, c := range certifications {
+			line := "\\item " + texLocale(c.Name, locale)
+			if org := c.IssuingOrganization.OrDefault(""); org != "" {
+				line += " -- " + tex(org)
+			}
+			b.WriteString(line + "\n")
+		}
+		b.WriteString("\\end{itemize}\n\n")
+	}
+
+	if len(languages) > 0 {
+		b.WriteString("\\section*{Languages}\n")
+		parts := make([]string, 0, len(languages))
+		for _, l := range languages {
+			part := texLocale(l.Name, locale)
+			if prof := l.Proficiency.OrDefault(""); prof != "" {
+				part += " (" + tex(prof) + ")"
+			}
+			parts = append(parts, part)
+		}
+		b.WriteString(strings.Join(parts, ", ") + "\n\n")
 	}
 
 	b.WriteString("\\end{document}\n")

@@ -10,6 +10,7 @@ package resume
 // fireback.SeederFromFSImport (see
 // ../nima/modules/musicalwork/InstrumentSeeders.go) expects.
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -22,14 +23,27 @@ import (
 )
 
 type ResumeDataSeeder struct {
-	Resume          ResumeSeederProfile          `yaml:"resume"`
-	Companies       []ResumeSeederCompany        `yaml:"companies"`
-	WorkExperiences []ResumeSeederWorkExperience `yaml:"workExperiences"`
-	Educations      []ResumeSeederEducation      `yaml:"educations"`
-	Skills          []ResumeSeederSkill          `yaml:"skills"`
-	Projects        []ResumeSeederProject        `yaml:"projects"`
-	Certifications  []ResumeSeederCertification  `yaml:"certifications"`
-	Languages       []ResumeSeederLanguage       `yaml:"languages"`
+	Resume          ResumeSeederProfile           `yaml:"resume"`
+	Companies       []ResumeSeederCompany         `yaml:"companies"`
+	TargetPositions []ResumeSeederTargetPosition  `yaml:"targetPositions"`
+	WorkExperiences []ResumeSeederWorkExperience  `yaml:"workExperiences"`
+	Educations      []ResumeSeederEducation       `yaml:"educations"`
+	Skills          []ResumeSeederSkill           `yaml:"skills"`
+	Projects        []ResumeSeederProject         `yaml:"projects"`
+	Certifications  []ResumeSeederCertification   `yaml:"certifications"`
+	Languages       []ResumeSeederLanguage        `yaml:"languages"`
+	// Content picks which skills/projects (by their own `key`, below) go
+	// into resume.content - the same {kind, uniqueId, label} JSON array the
+	// Resume Creator screen's drag-and-drop picker writes (see
+	// Resume.emi.yml's own doc comment on the `content` field). A plain
+	// list of keys here, resolved against skillsByKey/projectsByKey once
+	// every skill/project row has been created - see SeedResumeData's own
+	// build-the-content-array step at the end.
+	Content []string `yaml:"content"`
+}
+
+type ResumeSeederTargetPosition struct {
+	Name complexes.TString `yaml:"name"`
 }
 
 // Fields typed complexes.TString below mirror Resume.emi.yml's own
@@ -96,6 +110,11 @@ type ResumeSeederEducation struct {
 }
 
 type ResumeSeederSkill struct {
+	// Key is a seeder-only field (like ResumeSeederCompany.Key) - how
+	// `content` (above) references this skill without needing a real
+	// database id yet. Left empty for a skill that's just recorded, not
+	// picked for this resume's content.
+	Key               string            `yaml:"key"`
 	Name              string            `yaml:"name"`
 	Category          string            `yaml:"category"`
 	Level             string            `yaml:"level"`
@@ -104,6 +123,9 @@ type ResumeSeederSkill struct {
 }
 
 type ResumeSeederProject struct {
+	// Key - see ResumeSeederSkill.Key's own doc comment; same idea, same
+	// `content` list.
+	Key          string            `yaml:"key"`
 	Name         string            `yaml:"name"`
 	Role         complexes.TString `yaml:"role"`
 	Summary      complexes.TString `yaml:"summary"`
@@ -168,6 +190,93 @@ func SeedResumeData(db *gorm.DB, seeder *ResumeDataSeeder) (*resumedefs.ResumeEn
 			return fmt.Errorf("clearing existing resume %q: %w", seeder.Resume.FullName, err)
 		}
 
+		// Skills and Projects are created up front, before the Resume row
+		// itself, specifically so `resume.content` (below) can be set
+		// directly in the initial Create call instead of a follow-up
+		// Update. A follow-up Update would be a real bug, not just an
+		// ordering nicety: Headline/Summary/Location/Content are all plain
+		// `complex` fields (TString/MJson) with no IsSet() concept, so the
+		// generated Update always applies every one of them unconditionally
+		// (see EducationEntityUpdateFn and friends) - an
+		// Update(ResumeOptionalDto{Content: ...}) call with every other
+		// field left at its Go zero value would silently wipe
+		// Headline/Summary/Location right back to empty the moment it ran.
+		// This is the exact same bug class ResumeCreator's own TString
+		// fields hit before CommonEntityManager was fixed to seed
+		// touchedData with the full record - creating Content alongside
+		// everything else in one Create call sidesteps it entirely rather
+		// than needing to remember to carry every other complex field
+		// forward on some later partial Update.
+		skillsByKey := make(map[string]*resumedefs.SkillEntity, len(seeder.Skills))
+		for _, s := range seeder.Skills {
+			entity := &resumedefs.SkillEntity{
+
+				Name:              s.Name,
+				Category:          emigo.NullableOf(s.Category),
+				Level:             emigo.NullableOf(s.Level),
+				YearsOfExperience: emigo.NullableOf(s.YearsOfExperience),
+				Description:       s.Description,
+			}
+			created, err := resumedefs.SkillEntityActions.Create(tx, entity)
+			if err != nil {
+				return fmt.Errorf("creating skill %q: %w", s.Name, err)
+			}
+			if s.Key != "" {
+				skillsByKey[s.Key] = created
+			}
+		}
+
+		projectsByKey := make(map[string]*resumedefs.ProjectEntity, len(seeder.Projects))
+		for _, p := range seeder.Projects {
+			entity := &resumedefs.ProjectEntity{
+
+				Name:         p.Name,
+				Role:         p.Role,
+				Summary:      p.Summary,
+				StartDate:    complexes.XDate(p.StartDate),
+				EndDate:      complexes.XDate(p.EndDate),
+				IsOngoing:    emigo.NullableOf(p.IsOngoing),
+				Url:          emigo.NullableOf(p.Url),
+				RepoUrl:      emigo.NullableOf(p.RepoUrl),
+				Technologies: emigo.NullableOf(p.Technologies),
+				Highlights:   emigo.NullableOf(p.Highlights),
+			}
+			created, err := resumedefs.ProjectEntityActions.Create(tx, entity)
+			if err != nil {
+				return fmt.Errorf("creating project %q: %w", p.Name, err)
+			}
+			if p.Key != "" {
+				projectsByKey[p.Key] = created
+			}
+		}
+
+		// See ResumeSeederSkill.Key/ResumeSeederProject.Key's own doc
+		// comments - `content` picks which of the skills/projects just
+		// created above (by that same seeder-only key) go into
+		// resume.content, resolved into the {kind, uniqueId, label} shape
+		// the Resume Creator screen's picker itself writes
+		// (resumeContentItem - see ResumeToLatexImplementation.go).
+		var resumeContent complexes.MJson
+		if len(seeder.Content) > 0 {
+			items := make([]resumeContentItem, 0, len(seeder.Content))
+			for _, key := range seeder.Content {
+				if s, ok := skillsByKey[key]; ok {
+					items = append(items, resumeContentItem{Kind: "skill", UniqueId: s.UniqueId, Label: s.Name})
+					continue
+				}
+				if p, ok := projectsByKey[key]; ok {
+					items = append(items, resumeContentItem{Kind: "project", UniqueId: p.UniqueId, Label: p.Name})
+					continue
+				}
+				return fmt.Errorf("resume.content references unknown skill/project key %q", key)
+			}
+			encoded, err := json.Marshal(items)
+			if err != nil {
+				return fmt.Errorf("encoding resume content: %w", err)
+			}
+			resumeContent = complexes.MJson(encoded)
+		}
+
 		created, err := resumedefs.ResumeEntityActions.Create(tx, &resumedefs.ResumeEntity{
 			FullName:  seeder.Resume.FullName,
 			Headline:  seeder.Resume.Headline,
@@ -181,11 +290,20 @@ func SeedResumeData(db *gorm.DB, seeder *ResumeDataSeeder) (*resumedefs.ResumeEn
 			PhotoUrl:  emigo.NullableOf(seeder.Resume.PhotoUrl),
 			Language:  emigo.NullableOf(seeder.Resume.Language),
 			IsPrimary: emigo.NullableOf(seeder.Resume.IsPrimary),
+			Content:   resumeContent,
 		})
 		if err != nil {
 			return fmt.Errorf("creating resume: %w", err)
 		}
 		resume = created
+
+		for _, t := range seeder.TargetPositions {
+			if _, err := resumedefs.TargetPositionEntityActions.Create(tx, &resumedefs.TargetPositionEntity{
+				Name: t.Name,
+			}); err != nil {
+				return fmt.Errorf("creating target position %q: %w", t.Name.Get("en"), err)
+			}
+		}
 
 		companies := make(map[string]*resumedefs.CompanyEntity, len(seeder.Companies))
 		for _, c := range seeder.Companies {
@@ -252,39 +370,6 @@ func SeedResumeData(db *gorm.DB, seeder *ResumeDataSeeder) (*resumedefs.ResumeEn
 			}
 		}
 
-		for _, s := range seeder.Skills {
-			entity := &resumedefs.SkillEntity{
-
-				Name:              s.Name,
-				Category:          emigo.NullableOf(s.Category),
-				Level:             emigo.NullableOf(s.Level),
-				YearsOfExperience: emigo.NullableOf(s.YearsOfExperience),
-				Description:       s.Description,
-			}
-			if _, err := resumedefs.SkillEntityActions.Create(tx, entity); err != nil {
-				return fmt.Errorf("creating skill %q: %w", s.Name, err)
-			}
-		}
-
-		for _, p := range seeder.Projects {
-			entity := &resumedefs.ProjectEntity{
-
-				Name:         p.Name,
-				Role:         p.Role,
-				Summary:      p.Summary,
-				StartDate:    complexes.XDate(p.StartDate),
-				EndDate:      complexes.XDate(p.EndDate),
-				IsOngoing:    emigo.NullableOf(p.IsOngoing),
-				Url:          emigo.NullableOf(p.Url),
-				RepoUrl:      emigo.NullableOf(p.RepoUrl),
-				Technologies: emigo.NullableOf(p.Technologies),
-				Highlights:   emigo.NullableOf(p.Highlights),
-			}
-			if _, err := resumedefs.ProjectEntityActions.Create(tx, entity); err != nil {
-				return fmt.Errorf("creating project %q: %w", p.Name, err)
-			}
-		}
-
 		for _, c := range seeder.Certifications {
 			entity := &resumedefs.CertificationEntity{
 
@@ -321,11 +406,22 @@ func SeedResumeData(db *gorm.DB, seeder *ResumeDataSeeder) (*resumedefs.ResumeEn
 }
 
 // deleteExistingResume removes a previously-seeded resume (matched by
-
-// SeedResumeData can be called repeatedly without piling up duplicates.
-// fireback doesn't generate DB-level ON DELETE CASCADE for these
-
-// so each section is deleted explicitly before the resume row itself.
+// fullName) so SeedResumeData can be called repeatedly without piling up
+// duplicate Resume rows.
+//
+// Only the Resume row itself, though - WorkExperience/Education/Skill/
+// Project/Certification/Language (and TargetPosition) aren't scoped to a
+// resume at all anymore (see Resume.emi.yml's own top-of-file note: every
+// section entity dropped its `resume: one` field), so there's no "this
+// resume's own sections" to clean up here the way an earlier version of
+// this function tried to (deleting by a `resume_id` column that's still
+// physically in the table from before that change, but nothing here ever
+// writes to it, so that delete-by-resume_id silently matched zero rows on
+// every entity created since - not a crash, just dead code). Re-running
+// `resume seed` therefore recreates a fresh set of companies/skills/
+// projects/etc. every time rather than reconciling with what's already
+// there - fine for this repo's own personal-single-resume use, but worth
+// knowing before seeding into a database anyone else's data also lives in.
 func deleteExistingResume(tx *gorm.DB, fullName string) error {
 	if fullName == "" {
 		return nil
@@ -338,19 +434,6 @@ func deleteExistingResume(tx *gorm.DB, fullName string) error {
 			return nil
 		}
 		return err
-	}
-
-	for _, model := range []interface{}{
-		&resumedefs.WorkExperienceEntity{},
-		&resumedefs.EducationEntity{},
-		&resumedefs.SkillEntity{},
-		&resumedefs.ProjectEntity{},
-		&resumedefs.CertificationEntity{},
-		&resumedefs.LanguageEntity{},
-	} {
-		if err := tx.Where("resume_id = ?", existing.Id).Delete(model).Error; err != nil {
-			return err
-		}
 	}
 
 	return tx.Delete(&existing).Error

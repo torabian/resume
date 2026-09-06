@@ -69,6 +69,7 @@ func ResumeModuleSetup(cfg *ResumeModuleConfig) *application.ModuleProvider {
 				resumedefs.ResumeAwareDeletePreviewActionGin(g, ResumeAwareDeletePreviewAction)
 				resumedefs.ResumeAwareDeleteActionGin(g, ResumeAwareDeleteAction)
 				resumedefs.ResumeToLatexActionGin(g, ResumeToLatexAction)
+				g.GET("/profile/:uniqueId/pdf", resumeToPdfHandler)
 
 				resumedefs.CompanyCreateActionGin(g, CompanyCreateAction)
 				resumedefs.CompanyUpdateActionGin(g, CompanyUpdateAction)
