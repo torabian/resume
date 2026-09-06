@@ -1,14 +1,15 @@
 import { type RJSFSchema } from "@rjsf/utils";
-import { VirtualEntityManager } from "@/components/entity-manager/VirtualEntityManager";
+import { VirtualEntityManager, localizeSchema } from "@fireback/virtual-entity-manager";
 import { useEducationGetActionQuery } from "@/modules/resume/sdk/EducationGetAction";
 import { useEducationBrowseActionQuery } from "@/modules/resume/sdk/EducationBrowseAction";
 import { useEducationCreateAction } from "@/modules/resume/sdk/EducationCreateAction";
 import { useEducationUpdateAction } from "@/modules/resume/sdk/EducationUpdateAction";
 import { useEducationAwareDeleteAction } from "@/modules/resume/sdk/EducationAwareDeleteAction";
 import { EducationDto } from "@/modules/resume/sdk/EducationDto";
-import { localizeSchema } from "@/components/entity-manager/VirtualEntityManager/localizeSchema";
+
 import {
   withTStringFields,
+  withXDateFields,
   TSTRING_RJSF_FIELDS,
   stripNullOptionalValues,
 } from "./routeUtils";
@@ -17,16 +18,28 @@ import {
 // Resume.emi.yml's own top-of-file "Translatable fields" note.
 const TSTRING_FIELDS = ["degree", "fieldOfStudy", "location", "description"];
 
+// startDate/endDate are `complex?: XDate` - see Resume.emi.yml's own
+// top-of-file "Dates" note.
+const XDATE_FIELDS = ["startDate", "endDate"];
+
 const BASE_SCHEMA = localizeSchema(
   EducationDto.JsonSchema as RJSFSchema,
   EducationDto.DefaultTranslations,
 );
-const { schema: EDUCATION_SCHEMA, uiSchema: EDUCATION_UI_SCHEMA } =
+const { schema: TSTRING_PATCHED_SCHEMA, uiSchema: EDUCATION_UI_SCHEMA } =
   withTStringFields(BASE_SCHEMA, TSTRING_FIELDS);
-const beforeSetValues = stripNullOptionalValues(EDUCATION_SCHEMA);
+const { schema: EDUCATION_SCHEMA } = withXDateFields(
+  TSTRING_PATCHED_SCHEMA,
+  XDATE_FIELDS,
+);
+// Both startDate and endDate are optional here (unlike WorkExperience's
+// required startDate) - see stripNullOptionalValues's own doc comment on
+// why only optional XDate fields need their "" normalized away.
+const beforeSetValues = stripNullOptionalValues(
+  EDUCATION_SCHEMA,
+  XDATE_FIELDS,
+);
 
-// NOTE: `resume` (required) is a `one` relation selector, left unpatched
-// here - see WorkExperienceRoutes.tsx's identical note.
 export function useEducationRoutes() {
   return VirtualEntityManager({
     slug: "education",

@@ -47,6 +47,17 @@ func companyCliCommands() []*cli.Command {
 	)
 }
 
+func targetPositionCliCommands() []*cli.Command {
+	return entityCrudCommands(
+		resumedefs.TargetPositionCreateActionCliHandler(TargetPositionCreateAction),
+		resumedefs.TargetPositionUpdateActionCliHandler(TargetPositionUpdateAction),
+		resumedefs.TargetPositionGetActionCliHandler(TargetPositionGetAction),
+		resumedefs.TargetPositionBrowseActionCliHandler(TargetPositionBrowseAction),
+		resumedefs.TargetPositionAwareDeletePreviewActionCliHandler(TargetPositionAwareDeletePreviewAction),
+		resumedefs.TargetPositionAwareDeleteActionCliHandler(TargetPositionAwareDeleteAction),
+	)
+}
+
 func workExperienceCliCommands() []*cli.Command {
 	return entityCrudCommands(
 		resumedefs.WorkExperienceCreateActionCliHandler(WorkExperienceCreateAction),
@@ -120,6 +131,7 @@ func RouterCliManifest() []*cli.Command {
 	return []*cli.Command{
 		{Name: "profile", Usage: "Manage the root Resume record (create/get/browse/update/delete)", Commands: resumeCliCommands()},
 		{Name: "company", Usage: "Manage employer records (create/get/browse/update/delete)", Commands: companyCliCommands()},
+		{Name: "target-position", Usage: "Manage target position records (create/get/browse/update/delete)", Commands: targetPositionCliCommands()},
 		{Name: "work-experience", Usage: "Manage work experience entries (create/get/browse/update/delete)", Commands: workExperienceCliCommands()},
 		{Name: "education", Usage: "Manage education entries (create/get/browse/update/delete)", Commands: educationCliCommands()},
 		{Name: "skill", Usage: "Manage skill entries (create/get/browse/update/delete)", Commands: skillCliCommands()},

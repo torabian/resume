@@ -9,12 +9,11 @@ import (
 
 // The base class definition for skillOptionalDto
 type SkillOptionalDto struct {
-	UniqueId          emigo.Nullable[string]       `json:"uniqueId" yaml:"uniqueId"`
-	Resume            emigo.OneNullable[ResumeDto] `json:"resume" yaml:"resume"`
-	Name              emigo.Nullable[string]       `json:"name" yaml:"name"`
-	Category          emigo.Nullable[string]       `json:"category" yaml:"category"`
-	Level             emigo.Nullable[string]       `json:"level" yaml:"level"`
-	YearsOfExperience emigo.Nullable[int]          `json:"yearsOfExperience" yaml:"yearsOfExperience"`
+	UniqueId          emigo.Nullable[string] `json:"uniqueId" yaml:"uniqueId"`
+	Name              emigo.Nullable[string] `json:"name" yaml:"name"`
+	Category          emigo.Nullable[string] `json:"category" yaml:"category"`
+	Level             emigo.Nullable[string] `json:"level" yaml:"level"`
+	YearsOfExperience emigo.Nullable[int]    `json:"yearsOfExperience" yaml:"yearsOfExperience"`
 	// Longer free-text elaboration on the skill, if any.
 	Description complexes.TString `json:"description" yaml:"description"`
 }
@@ -31,10 +30,6 @@ func GetSkillOptionalDtoCliFlags(prefix string) []emigo.CliFlag {
 		{
 			Name: prefix + "unique-id",
 			Type: "string?",
-		},
-		{
-			Name: prefix + "resume",
-			Type: "one?",
 		},
 		{
 			Name: prefix + "name",
@@ -63,9 +58,6 @@ func CastSkillOptionalDtoFromCli(c emigo.CliCastable) SkillOptionalDto {
 	data := SkillOptionalDto{}
 	if c.IsSet("unique-id") {
 		emigo.ParseNullable(c.String("unique-id"), &data.UniqueId)
-	}
-	if c.IsSet("resume") {
-		data.Resume = emigo.CapturePossibleOneNullable(CastResumeDtoFromCli, "resume", c)
 	}
 	if c.IsSet("name") {
 		emigo.ParseNullable(c.String("name"), &data.Name)

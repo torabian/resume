@@ -7,21 +7,20 @@ import (
 	"github.com/torabian/fireback/modules/fireback/complexes"
 )
 
-// The base class definition for languageDto
-type LanguageDto struct {
-	UniqueId    emigo.Nullable[string] `json:"uniqueId" yaml:"uniqueId"`
-	Name        complexes.TString      `json:"name" yaml:"name"`
-	Proficiency emigo.Nullable[string] `json:"proficiency" yaml:"proficiency"`
+// The base class definition for targetPositionDto
+type TargetPositionDto struct {
+	UniqueId emigo.Nullable[string] `json:"uniqueId" yaml:"uniqueId"`
+	Name     complexes.TString      `json:"name" yaml:"name"`
 }
 
-func (x *LanguageDto) Json() string {
+func (x *TargetPositionDto) Json() string {
 	if x != nil {
 		str, _ := json.MarshalIndent(x, "", "  ")
 		return string(str)
 	}
 	return ""
 }
-func GetLanguageDtoCliFlags(prefix string) []emigo.CliFlag {
+func GetTargetPositionDtoCliFlags(prefix string) []emigo.CliFlag {
 	return []emigo.CliFlag{
 		{
 			Name: prefix + "unique-id",
@@ -31,14 +30,10 @@ func GetLanguageDtoCliFlags(prefix string) []emigo.CliFlag {
 			Name: prefix + "name",
 			Type: "complex",
 		},
-		{
-			Name: prefix + "proficiency",
-			Type: "enum?",
-		},
 	}
 }
-func CastLanguageDtoFromCli(c emigo.CliCastable) LanguageDto {
-	data := LanguageDto{}
+func CastTargetPositionDtoFromCli(c emigo.CliCastable) TargetPositionDto {
+	data := TargetPositionDto{}
 	if c.IsSet("unique-id") {
 		emigo.ParseNullable(c.String("unique-id"), &data.UniqueId)
 	}
@@ -46,9 +41,6 @@ func CastLanguageDtoFromCli(c emigo.CliCastable) LanguageDto {
 		if u, ok := any(&data.Name).(encoding.TextUnmarshaler); ok {
 			u.UnmarshalText([]byte(c.String("name")))
 		}
-	}
-	if c.IsSet("proficiency") {
-		emigo.ParseNullable(c.String("proficiency"), &data.Proficiency)
 	}
 	return data
 }

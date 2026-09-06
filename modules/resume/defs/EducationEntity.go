@@ -12,20 +12,18 @@ import (
 
 // The base class definition for educationEntity
 type EducationEntity struct {
-	Id          int64         `gorm:"primaryKey;autoIncrement" json:"-" yaml:"-"`
-	UniqueId    string        `gorm:"type:varchar(100);default:gen_random_uuid();unique" json:"uniqueId" yaml:"uniqueId"`
-	Resume      *ResumeEntity `gorm:"foreignKey:ResumeId;references:Id" json:"resume" yaml:"resume"`
-	Institution string        `json:"institution" yaml:"institution"`
+	Id          int64  `gorm:"primaryKey;autoIncrement" json:"-" yaml:"-"`
+	UniqueId    string `gorm:"type:varchar(100);default:gen_random_uuid();unique" json:"uniqueId" yaml:"uniqueId"`
+	Institution string `json:"institution" yaml:"institution"`
 	// e.g. "B.Sc.", "M.Sc.", "Bootcamp certificate".
 	Degree       complexes.TString      `json:"degree" yaml:"degree"`
 	FieldOfStudy complexes.TString      `json:"fieldOfStudy" yaml:"fieldOfStudy"`
 	Location     complexes.TString      `json:"location" yaml:"location"`
-	StartDate    emigo.Nullable[string] `json:"startDate" yaml:"startDate"`
-	EndDate      emigo.Nullable[string] `json:"endDate" yaml:"endDate"`
+	StartDate    complexes.XDate        `json:"startDate" yaml:"startDate"`
+	EndDate      complexes.XDate        `json:"endDate" yaml:"endDate"`
 	IsCurrent    emigo.Nullable[bool]   `json:"isCurrent" yaml:"isCurrent"`
 	Grade        emigo.Nullable[string] `json:"grade" yaml:"grade"`
 	Description  complexes.TString      `json:"description" yaml:"description"`
-	ResumeId     int64                  `gorm:"index" json:"-" yaml:"-"`
 }
 
 func (x *EducationEntity) Json() string {
@@ -46,10 +44,6 @@ func GetEducationEntityCliFlags(prefix string) []emigo.CliFlag {
 			Type: "string",
 		},
 		{
-			Name: prefix + "resume",
-			Type: "class",
-		},
-		{
 			Name: prefix + "institution",
 			Type: "string",
 		},
@@ -68,11 +62,11 @@ func GetEducationEntityCliFlags(prefix string) []emigo.CliFlag {
 		},
 		{
 			Name: prefix + "start-date",
-			Type: "string?",
+			Type: "complex",
 		},
 		{
 			Name: prefix + "end-date",
-			Type: "string?",
+			Type: "complex",
 		},
 		{
 			Name: prefix + "is-current",
@@ -85,10 +79,6 @@ func GetEducationEntityCliFlags(prefix string) []emigo.CliFlag {
 		{
 			Name: prefix + "description",
 			Type: "complex",
-		},
-		{
-			Name: prefix + "resume-id",
-			Type: "int64",
 		},
 	}
 }
@@ -119,10 +109,14 @@ func CastEducationEntityFromCli(c emigo.CliCastable) EducationEntity {
 		}
 	}
 	if c.IsSet("start-date") {
-		emigo.ParseNullable(c.String("start-date"), &data.StartDate)
+		if u, ok := any(&data.StartDate).(encoding.TextUnmarshaler); ok {
+			u.UnmarshalText([]byte(c.String("start-date")))
+		}
 	}
 	if c.IsSet("end-date") {
-		emigo.ParseNullable(c.String("end-date"), &data.EndDate)
+		if u, ok := any(&data.EndDate).(encoding.TextUnmarshaler); ok {
+			u.UnmarshalText([]byte(c.String("end-date")))
+		}
 	}
 	if c.IsSet("is-current") {
 		emigo.ParseNullable(c.String("is-current"), &data.IsCurrent)
@@ -134,9 +128,6 @@ func CastEducationEntityFromCli(c emigo.CliCastable) EducationEntity {
 		if u, ok := any(&data.Description).(encoding.TextUnmarshaler); ok {
 			u.UnmarshalText([]byte(c.String("description")))
 		}
-	}
-	if c.IsSet("resume-id") {
-		data.ResumeId = int64(c.Int64("resume-id"))
 	}
 	return data
 }
@@ -179,32 +170,14 @@ func EducationEntityUpdateFn(tx *gorm.DB, uniqueId string, input EducationOption
 			return err
 		}
 		changes := map[string]interface{}{}
-		if input.Resume.IsSet() {
-			if input.Resume.Operation != "select" {
-				return fmt.Errorf("resume: updating a one/one? relation only supports the \"select\" operation (link to an existing row by its uniqueId), got %q", input.Resume.Operation)
-			}
-			var selectorId string
-			if s, ok := input.Resume.Selector.(string); ok {
-				selectorId = s
-			}
-			resolvedId, err := emigorm.ReconcileOne[ResumeEntity](tx, input.Resume.Operation, selectorId, nil)
-			if err != nil {
-				return err
-			}
-			changes["ResumeId"] = resolvedId
-		}
 		if input.Institution.IsSet() {
 			changes["Institution"] = input.Institution
 		}
 		changes["Degree"] = input.Degree
 		changes["FieldOfStudy"] = input.FieldOfStudy
 		changes["Location"] = input.Location
-		if input.StartDate.IsSet() {
-			changes["StartDate"] = input.StartDate
-		}
-		if input.EndDate.IsSet() {
-			changes["EndDate"] = input.EndDate
-		}
+		changes["StartDate"] = input.StartDate
+		changes["EndDate"] = input.EndDate
 		if input.IsCurrent.IsSet() {
 			changes["IsCurrent"] = input.IsCurrent
 		}

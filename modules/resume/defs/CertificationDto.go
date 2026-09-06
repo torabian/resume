@@ -9,14 +9,13 @@ import (
 
 // The base class definition for certificationDto
 type CertificationDto struct {
-	UniqueId            emigo.Nullable[string]       `json:"uniqueId" yaml:"uniqueId"`
-	Resume              emigo.OneNullable[ResumeDto] `json:"resume" yaml:"resume"`
-	Name                complexes.TString            `json:"name" yaml:"name"`
-	IssuingOrganization emigo.Nullable[string]       `json:"issuingOrganization" yaml:"issuingOrganization"`
-	IssueDate           emigo.Nullable[string]       `json:"issueDate" yaml:"issueDate"`
-	ExpirationDate      emigo.Nullable[string]       `json:"expirationDate" yaml:"expirationDate"`
-	CredentialId        emigo.Nullable[string]       `json:"credentialId" yaml:"credentialId"`
-	CredentialUrl       emigo.Nullable[string]       `json:"credentialUrl" yaml:"credentialUrl"`
+	UniqueId            emigo.Nullable[string] `json:"uniqueId" yaml:"uniqueId"`
+	Name                complexes.TString      `json:"name" yaml:"name"`
+	IssuingOrganization emigo.Nullable[string] `json:"issuingOrganization" yaml:"issuingOrganization"`
+	IssueDate           emigo.Nullable[string] `json:"issueDate" yaml:"issueDate"`
+	ExpirationDate      emigo.Nullable[string] `json:"expirationDate" yaml:"expirationDate"`
+	CredentialId        emigo.Nullable[string] `json:"credentialId" yaml:"credentialId"`
+	CredentialUrl       emigo.Nullable[string] `json:"credentialUrl" yaml:"credentialUrl"`
 }
 
 func (x *CertificationDto) Json() string {
@@ -31,10 +30,6 @@ func GetCertificationDtoCliFlags(prefix string) []emigo.CliFlag {
 		{
 			Name: prefix + "unique-id",
 			Type: "string?",
-		},
-		{
-			Name: prefix + "resume",
-			Type: "one?",
 		},
 		{
 			Name: prefix + "name",
@@ -66,9 +61,6 @@ func CastCertificationDtoFromCli(c emigo.CliCastable) CertificationDto {
 	data := CertificationDto{}
 	if c.IsSet("unique-id") {
 		emigo.ParseNullable(c.String("unique-id"), &data.UniqueId)
-	}
-	if c.IsSet("resume") {
-		data.Resume = emigo.CapturePossibleOneNullable(CastResumeDtoFromCli, "resume", c)
 	}
 	if c.IsSet("name") {
 		if u, ok := any(&data.Name).(encoding.TextUnmarshaler); ok {

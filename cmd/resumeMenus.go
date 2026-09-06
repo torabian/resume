@@ -1,10 +1,11 @@
 package main
 
-// Sidebar entries for the 8 VirtualEntityManager screens wired in
+// Sidebar entries for the 9 VirtualEntityManager screens wired in
 // ui/src/apps/manage/ApplicationRoutes.tsx (ResumeRoutes.tsx,
-// CompanyRoutes.tsx, WorkExperienceRoutes.tsx, EducationRoutes.tsx,
-// SkillRoutes.tsx, ProjectRoutes.tsx, CertificationRoutes.tsx,
-// LanguageRoutes.tsx). Same shape as ../../nima/modules/musicalwork/
+// CompanyRoutes.tsx, TargetPositionRoutes.tsx, WorkExperienceRoutes.tsx,
+// EducationRoutes.tsx, SkillRoutes.tsx, ProjectRoutes.tsx,
+// CertificationRoutes.tsx, LanguageRoutes.tsx). Same shape as
+// ../../nima/modules/musicalwork/
 // MusicalWorkModule.go's MusicWorkMenu()/*Menu.go files: one parent group
 // entity (no Href, just a label to nest under) plus one child per screen,
 // linked via ParentId.
@@ -25,8 +26,8 @@ package main
 // This file lives in cmd/ (package main) rather than under modules/resume
 // the way musicalwork's own *Menu.go files do, since modules/resume has no
 // dependency on interfacetoolsdefs/abac today (see ResumeModule.go) and
-// this wiring is purely for main.go's own xapp - see resumeExtraAppMenus's
-// call site in main.go.
+// this wiring is purely for main.go's own xapp - see resumeMenus()'s call
+// site in main.go's InterfaceToolsModuleConfig.ExtraAppMenus.
 import (
 	"github.com/torabian/emi/emigo"
 	interfacetoolsdefs "github.com/torabian/fireback/modules/abac/interfacetools/defs"
@@ -63,6 +64,16 @@ func resumeMenus() []*interfacetoolsdefs.AppMenuEntity {
 			Href:          "/companies",
 			Icon:          "/common/entity-default.svg",
 			ActiveMatcher: "companies",
+			ParentId:      emigo.NullableOf(group.UniqueId),
+		},
+		{
+			UniqueId: "resume-sections-target-positions",
+			Label: complexes.TStringFrom(map[string]string{
+				"en": "Target positions",
+			}),
+			Href:          "/target-positions",
+			Icon:          "/common/entity-default.svg",
+			ActiveMatcher: "target-positions",
 			ParentId:      emigo.NullableOf(group.UniqueId),
 		},
 		{

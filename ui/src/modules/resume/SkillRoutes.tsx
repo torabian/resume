@@ -1,12 +1,12 @@
 import { type RJSFSchema } from "@rjsf/utils";
-import { VirtualEntityManager } from "@/components/entity-manager/VirtualEntityManager";
+import { VirtualEntityManager, localizeSchema } from "@fireback/virtual-entity-manager";
 import { useSkillGetActionQuery } from "@/modules/resume/sdk/SkillGetAction";
 import { useSkillBrowseActionQuery } from "@/modules/resume/sdk/SkillBrowseAction";
 import { useSkillCreateAction } from "@/modules/resume/sdk/SkillCreateAction";
 import { useSkillUpdateAction } from "@/modules/resume/sdk/SkillUpdateAction";
 import { useSkillAwareDeleteAction } from "@/modules/resume/sdk/SkillAwareDeleteAction";
 import { SkillDto } from "@/modules/resume/sdk/SkillDto";
-import { localizeSchema } from "@/components/entity-manager/VirtualEntityManager/localizeSchema";
+
 import {
   withTStringFields,
   TSTRING_RJSF_FIELDS,
@@ -28,8 +28,6 @@ const { schema: SKILL_SCHEMA, uiSchema: SKILL_UI_SCHEMA } = withTStringFields(
 );
 const beforeSetValues = stripNullOptionalValues(SKILL_SCHEMA);
 
-// NOTE: `resume` (required) is a `one` relation selector, left unpatched
-// here - see WorkExperienceRoutes.tsx's identical note.
 export function useSkillRoutes() {
   return VirtualEntityManager({
     slug: "skill",

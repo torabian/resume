@@ -41,13 +41,21 @@ description: |
   row can carry both an English and a Persian rendering of the same field
   instead of needing a whole separate resume per language. Proper
   nouns/identifiers (a person's fullName, a company's legal name, a skill or
-  project's own name, an institution, urls/emails/ids/dates, enums) stay
-  plain `string(?)` - they aren't translated, they're the same value in
-  every language. String *slices* (achievements, technologies, highlights)
-  are left alone too, even where individual bullets are genuinely
-  translatable prose - TString has no array counterpart here without a
-  bigger structural change (each item becoming its own array/collection
-  child row) than this pass covers.
+  project's own name, an institution, urls/emails/ids, enums) stay plain
+  `string(?)` - they aren't translated, they're the same value in every
+  language. String *slices* (achievements, technologies, highlights) are
+  left alone too, even where individual bullets are genuinely translatable
+  prose - TString has no array counterpart here without a bigger structural
+  change (each item becoming its own array/collection child row) than this
+  pass covers.
+
+  Dates: every `startDate`/`endDate` pair (workExperience, education,
+  project) is `complex(?): XDate` (see ../definitions/complexes.emi.yml) -
+  same locale-agnostic parse/format/persian-calendar handling every other
+  XDate field in this codebase gets (e.g. ../../../nima/modules/entitlement/
+  Entitlement.emi.yml's own startDate/endDate), stored as a real SQL `date`
+  column instead of free text. `issueDate`/`expirationDate` on certification
+  are left plain `string(?)` for now - not touched by this pass.
 name: resume
 dtos:
 - description: Every field of the "company" entity, but optional - used both as Update's
@@ -70,6 +78,15 @@ dtos:
     complex: TString
   - name: description
     type: complex?
+    complex: TString
+- description: Every field of the "targetPosition" entity, but optional - used both
+    as Update's partial input and as Browse's response item shape.
+  name: targetPositionOptional
+  fields:
+  - name: uniqueId
+    type: string?
+  - name: name
+    type: complex
     complex: TString
 - description: Every field of the "resume" entity, but optional - used both as Update's
     partial input and as Browse's response item shape.
@@ -114,12 +131,9 @@ dtos:
   fields:
   - name: uniqueId
     type: string?
-  - name: resume
-    type: one?
-    target: ResumeDto
   - name: company
-    type: one?
-    target: CompanyDto
+    type: complex
+    complex: TString
   - name: jobTitle
     type: complex
     complex: TString
@@ -138,15 +152,12 @@ dtos:
     type: bool?
   - name: startDate
     description: ISO-8601 date, e.g. "2021-03-01".
-    type: string?
+    type: complex
+    complex: XDate
   - name: endDate
     description: ISO-8601 date. Empty/omitted when isCurrent is true.
-    type: string?
-  - name: isCurrent
-    type: bool?
-  - name: summary
     type: complex?
-    complex: TString
+    complex: XDate
   - name: achievements
     type: slice?
     primitive: string
@@ -156,9 +167,6 @@ dtos:
   fields:
   - name: uniqueId
     type: string?
-  - name: resume
-    type: one?
-    target: ResumeDto
   - name: institution
     type: string?
   - name: degree
@@ -172,9 +180,11 @@ dtos:
     type: complex?
     complex: TString
   - name: startDate
-    type: string?
+    type: complex?
+    complex: XDate
   - name: endDate
-    type: string?
+    type: complex?
+    complex: XDate
   - name: isCurrent
     type: bool?
   - name: grade
@@ -188,9 +198,6 @@ dtos:
   fields:
   - name: uniqueId
     type: string?
-  - name: resume
-    type: one?
-    target: ResumeDto
   - name: name
     type: string?
   - name: category
@@ -223,9 +230,6 @@ dtos:
   fields:
   - name: uniqueId
     type: string?
-  - name: resume
-    type: one?
-    target: ResumeDto
   - name: name
     type: string?
   - name: role
@@ -235,9 +239,11 @@ dtos:
     type: complex?
     complex: TString
   - name: startDate
-    type: string?
+    type: complex?
+    complex: XDate
   - name: endDate
-    type: string?
+    type: complex?
+    complex: XDate
   - name: isOngoing
     type: bool?
   - name: url
@@ -256,9 +262,6 @@ dtos:
   fields:
   - name: uniqueId
     type: string?
-  - name: resume
-    type: one?
-    target: ResumeDto
   - name: name
     type: complex
     complex: TString
@@ -278,9 +281,6 @@ dtos:
   fields:
   - name: uniqueId
     type: string?
-  - name: resume
-    type: one?
-    target: ResumeDto
   - name: name
     type: complex
     complex: TString
@@ -311,6 +311,14 @@ dtos:
     complex: TString
   - name: description
     type: complex?
+    complex: TString
+- description: Plain dto mirroring the "targetPosition" entity's own fields.
+  name: targetPosition
+  fields:
+  - name: uniqueId
+    type: string?
+  - name: name
+    type: complex
     complex: TString
 - description: Plain dto mirroring the "resume" entity's own fields.
   name: resume
@@ -353,12 +361,9 @@ dtos:
   fields:
   - name: uniqueId
     type: string?
-  - name: resume
-    type: one?
-    target: ResumeDto
   - name: company
-    type: one?
-    target: CompanyDto
+    type: complex
+    complex: TString
   - name: jobTitle
     type: complex
     complex: TString
@@ -377,15 +382,12 @@ dtos:
     type: bool?
   - name: startDate
     description: ISO-8601 date, e.g. "2021-03-01".
-    type: string
+    type: complex
+    complex: XDate
   - name: endDate
     description: ISO-8601 date. Empty/omitted when isCurrent is true.
-    type: string?
-  - name: isCurrent
-    type: bool?
-  - name: summary
     type: complex?
-    complex: TString
+    complex: XDate
   - name: achievements
     type: slice?
     primitive: string
@@ -394,9 +396,6 @@ dtos:
   fields:
   - name: uniqueId
     type: string?
-  - name: resume
-    type: one?
-    target: ResumeDto
   - name: institution
     type: string
   - name: degree
@@ -410,9 +409,11 @@ dtos:
     type: complex?
     complex: TString
   - name: startDate
-    type: string?
+    type: complex?
+    complex: XDate
   - name: endDate
-    type: string?
+    type: complex?
+    complex: XDate
   - name: isCurrent
     type: bool?
   - name: grade
@@ -425,9 +426,6 @@ dtos:
   fields:
   - name: uniqueId
     type: string?
-  - name: resume
-    type: one?
-    target: ResumeDto
   - name: name
     type: string
   - name: category
@@ -459,9 +457,6 @@ dtos:
   fields:
   - name: uniqueId
     type: string?
-  - name: resume
-    type: one?
-    target: ResumeDto
   - name: name
     type: string
   - name: role
@@ -471,9 +466,11 @@ dtos:
     type: complex?
     complex: TString
   - name: startDate
-    type: string?
+    type: complex?
+    complex: XDate
   - name: endDate
-    type: string?
+    type: complex?
+    complex: XDate
   - name: isOngoing
     type: bool?
   - name: url
@@ -491,9 +488,6 @@ dtos:
   fields:
   - name: uniqueId
     type: string?
-  - name: resume
-    type: one?
-    target: ResumeDto
   - name: name
     type: complex
     complex: TString
@@ -512,9 +506,6 @@ dtos:
   fields:
   - name: uniqueId
     type: string?
-  - name: resume
-    type: one?
-    target: ResumeDto
   - name: name
     type: complex
     complex: TString
@@ -545,6 +536,14 @@ entities:
     type: complex?
     complex: TString
   description: An employer. Reusable across work experiences and resumes.
+- name: targetPosition
+  fields:
+  - name: name
+    type: complex
+    complex: TString
+  description: |-
+    Target position is a reference point, which a resume is targetting some specific type of positions. For example, a person can have target position of  - Fullstack JavaDeveloper. - React front-end developer.
+    These are not resumes, rather reference point that a person can adjust the content of the position and project towards and specific position.
 - name: resume
   fields:
   - name: fullName
@@ -582,12 +581,9 @@ entities:
     Root aggregate for a single resume/CV. Sections (work experience, education, skills, projects, certifications, languages) are separate entities that reference this one via a `resume: one` field.
 - name: workExperience
   fields:
-  - name: resume
-    type: one
-    target: ResumeEntity
   - name: company
-    type: one?
-    target: CompanyEntity
+    type: complex
+    complex: TString
   - name: jobTitle
     type: complex
     complex: TString
@@ -606,24 +602,18 @@ entities:
     type: bool?
   - name: startDate
     description: ISO-8601 date, e.g. "2021-03-01".
-    type: string
+    type: complex
+    complex: XDate
   - name: endDate
     description: ISO-8601 date. Empty/omitted when isCurrent is true.
-    type: string?
-  - name: isCurrent
-    type: bool?
-  - name: summary
     type: complex?
-    complex: TString
+    complex: XDate
   - name: achievements
     type: slice?
     primitive: string
   description: A single employment period, linked to a Company and a Resume.
 - name: education
   fields:
-  - name: resume
-    type: one
-    target: ResumeEntity
   - name: institution
     type: string
   - name: degree
@@ -637,9 +627,11 @@ entities:
     type: complex?
     complex: TString
   - name: startDate
-    type: string?
+    type: complex?
+    complex: XDate
   - name: endDate
-    type: string?
+    type: complex?
+    complex: XDate
   - name: isCurrent
     type: bool?
   - name: grade
@@ -650,9 +642,6 @@ entities:
   description: A single degree/program, linked to a Resume.
 - name: skill
   fields:
-  - name: resume
-    type: one
-    target: ResumeEntity
   - name: name
     type: string
   - name: category
@@ -682,9 +671,6 @@ entities:
   description: A single skill/technology entry, linked to a Resume.
 - name: project
   fields:
-  - name: resume
-    type: one
-    target: ResumeEntity
   - name: name
     type: string
   - name: role
@@ -694,9 +680,11 @@ entities:
     type: complex?
     complex: TString
   - name: startDate
-    type: string?
+    type: complex?
+    complex: XDate
   - name: endDate
-    type: string?
+    type: complex?
+    complex: XDate
   - name: isOngoing
     type: bool?
   - name: url
@@ -712,9 +700,6 @@ entities:
   description: A portfolio/side/work project entry, linked to a Resume.
 - name: certification
   fields:
-  - name: resume
-    type: one
-    target: ResumeEntity
   - name: name
     type: complex
     complex: TString
@@ -731,9 +716,6 @@ entities:
   description: A certification/license entry, linked to a Resume.
 - name: language
   fields:
-  - name: resume
-    type: one
-    target: ResumeEntity
   - name: name
     type: complex
     complex: TString
@@ -850,6 +832,93 @@ actions:
   method: post
   description: Deletes the given "company" uniqueIds, along with everything companyAwareDeletePreview
     reports.
+  in:
+    fields:
+    - name: uniqueIds
+      type: slice
+      primitive: string
+- name: targetPositionCreate
+  cliName: create
+  cliShort: c
+  url: /targetPosition
+  method: post
+  description: Creates a new "targetPosition" row.
+  in:
+    dto: TargetPositionDto
+  out:
+    envelope: GResponse
+    dto: TargetPositionDto
+- name: targetPositionUpdate
+  cliName: update
+  cliShort: u
+  url: /targetPosition/:uniqueId
+  method: patch
+  description: Applies a partial update to a "targetPosition" row by uniqueId.
+  in:
+    dto: TargetPositionOptionalDto
+  out:
+    envelope: GResponse
+    dto: TargetPositionDto
+- name: targetPositionGet
+  cliName: get
+  cliShort: g
+  url: /targetPosition/:uniqueId
+  method: get
+  description: Looks up a single "targetPosition" row by uniqueId.
+  out:
+    envelope: GResponse
+    dto: TargetPositionDto
+- name: targetPositionBrowse
+  cliName: browse
+  cliShort: b
+  url: /targetPosition/browse
+  method: get
+  qs:
+  - name: filter
+    type: string
+  - name: sort
+    type: string
+  - name: startIndex
+    type: int
+  - name: itemsPerPage
+    type: int
+  - name: cursor
+    type: string
+  description: Returns "targetPosition" rows matching a filter, sorted/paged (see
+    emigorm.ApplyQueryFilter/ApplyQueryScope).
+  out:
+    envelope: GResponse
+    dto: TargetPositionOptionalDto
+- name: targetPositionAwareDeletePreview
+  cliName: delete-preview
+  cliShort: dp
+  url: /targetPosition/delete-preview
+  method: get
+  qs:
+  - name: uniqueIds
+    type: slice
+    primitive: string
+  description: Reports what deleting the given "targetPosition" uniqueIds would affect,
+    without deleting anything.
+  out:
+    envelope: GResponse
+    fields:
+    - name: message
+      type: string
+    - name: affected
+      type: array
+      fields:
+      - name: relation
+        type: string
+      - name: count
+        type: int64
+- name: targetPositionAwareDelete
+  cliName: delete
+  cliShort: d
+  url: /targetPosition/delete
+  method: post
+  description: Deletes the given "targetPosition" uniqueIds, along with everything
+    targetPositionAwareDeletePreview reports.
   in:
     fields:
     - name: uniqueIds

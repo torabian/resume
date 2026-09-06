@@ -14,21 +14,16 @@ import (
 type WorkExperienceEntity struct {
 	Id             int64                  `gorm:"primaryKey;autoIncrement" json:"-" yaml:"-"`
 	UniqueId       string                 `gorm:"type:varchar(100);default:gen_random_uuid();unique" json:"uniqueId" yaml:"uniqueId"`
-	Resume         *ResumeEntity          `gorm:"foreignKey:ResumeId;references:Id" json:"resume" yaml:"resume"`
-	Company        CompanyEntity          `gorm:"foreignKey:CompanyId;references:Id;constraint:-" json:"company" yaml:"company"`
+	Company        complexes.TString      `json:"company" yaml:"company"`
 	JobTitle       complexes.TString      `json:"jobTitle" yaml:"jobTitle"`
 	EmploymentType emigo.Nullable[string] `json:"employmentType" yaml:"employmentType"`
 	Location       complexes.TString      `json:"location" yaml:"location"`
 	Remote         emigo.Nullable[bool]   `json:"remote" yaml:"remote"`
 	// ISO-8601 date, e.g. "2021-03-01".
-	StartDate string `json:"startDate" yaml:"startDate"`
+	StartDate complexes.XDate `json:"startDate" yaml:"startDate"`
 	// ISO-8601 date. Empty/omitted when isCurrent is true.
-	EndDate      emigo.Nullable[string]   `json:"endDate" yaml:"endDate"`
-	IsCurrent    emigo.Nullable[bool]     `json:"isCurrent" yaml:"isCurrent"`
-	Summary      complexes.TString        `json:"summary" yaml:"summary"`
+	EndDate      complexes.XDate          `json:"endDate" yaml:"endDate"`
 	Achievements emigo.Nullable[[]string] `json:"achievements" yaml:"achievements"`
-	ResumeId     int64                    `gorm:"index" json:"-" yaml:"-"`
-	CompanyId    int64                    `gorm:"index" json:"-" yaml:"-"`
 }
 
 func (x *WorkExperienceEntity) Json() string {
@@ -49,12 +44,8 @@ func GetWorkExperienceEntityCliFlags(prefix string) []emigo.CliFlag {
 			Type: "string",
 		},
 		{
-			Name: prefix + "resume",
-			Type: "class",
-		},
-		{
 			Name: prefix + "company",
-			Type: "class?",
+			Type: "complex",
 		},
 		{
 			Name: prefix + "job-title",
@@ -74,33 +65,17 @@ func GetWorkExperienceEntityCliFlags(prefix string) []emigo.CliFlag {
 		},
 		{
 			Name:        prefix + "start-date",
-			Type:        "string",
+			Type:        "complex",
 			Description: "ISO-8601 date, e.g. \"2021-03-01\".",
 		},
 		{
 			Name:        prefix + "end-date",
-			Type:        "string?",
+			Type:        "complex",
 			Description: "ISO-8601 date. Empty/omitted when isCurrent is true.",
-		},
-		{
-			Name: prefix + "is-current",
-			Type: "bool?",
-		},
-		{
-			Name: prefix + "summary",
-			Type: "complex",
 		},
 		{
 			Name: prefix + "achievements",
 			Type: "slice?",
-		},
-		{
-			Name: prefix + "resume-id",
-			Type: "int64",
-		},
-		{
-			Name: prefix + "company-id",
-			Type: "int64",
 		},
 	}
 }
@@ -111,6 +86,11 @@ func CastWorkExperienceEntityFromCli(c emigo.CliCastable) WorkExperienceEntity {
 	}
 	if c.IsSet("unique-id") {
 		data.UniqueId = c.String("unique-id")
+	}
+	if c.IsSet("company") {
+		if u, ok := any(&data.Company).(encoding.TextUnmarshaler); ok {
+			u.UnmarshalText([]byte(c.String("company")))
+		}
 	}
 	if c.IsSet("job-title") {
 		if u, ok := any(&data.JobTitle).(encoding.TextUnmarshaler); ok {
@@ -129,27 +109,17 @@ func CastWorkExperienceEntityFromCli(c emigo.CliCastable) WorkExperienceEntity {
 		emigo.ParseNullable(c.String("remote"), &data.Remote)
 	}
 	if c.IsSet("start-date") {
-		data.StartDate = c.String("start-date")
+		if u, ok := any(&data.StartDate).(encoding.TextUnmarshaler); ok {
+			u.UnmarshalText([]byte(c.String("start-date")))
+		}
 	}
 	if c.IsSet("end-date") {
-		emigo.ParseNullable(c.String("end-date"), &data.EndDate)
-	}
-	if c.IsSet("is-current") {
-		emigo.ParseNullable(c.String("is-current"), &data.IsCurrent)
-	}
-	if c.IsSet("summary") {
-		if u, ok := any(&data.Summary).(encoding.TextUnmarshaler); ok {
-			u.UnmarshalText([]byte(c.String("summary")))
+		if u, ok := any(&data.EndDate).(encoding.TextUnmarshaler); ok {
+			u.UnmarshalText([]byte(c.String("end-date")))
 		}
 	}
 	if c.IsSet("achievements") {
 		emigo.ParseNullable(c.String("achievements"), &data.Achievements)
-	}
-	if c.IsSet("resume-id") {
-		data.ResumeId = int64(c.Int64("resume-id"))
-	}
-	if c.IsSet("company-id") {
-		data.CompanyId = int64(c.Int64("company-id"))
 	}
 	return data
 }
@@ -192,34 +162,7 @@ func WorkExperienceEntityUpdateFn(tx *gorm.DB, uniqueId string, input WorkExperi
 			return err
 		}
 		changes := map[string]interface{}{}
-		if input.Resume.IsSet() {
-			if input.Resume.Operation != "select" {
-				return fmt.Errorf("resume: updating a one/one? relation only supports the \"select\" operation (link to an existing row by its uniqueId), got %q", input.Resume.Operation)
-			}
-			var selectorId string
-			if s, ok := input.Resume.Selector.(string); ok {
-				selectorId = s
-			}
-			resolvedId, err := emigorm.ReconcileOne[ResumeEntity](tx, input.Resume.Operation, selectorId, nil)
-			if err != nil {
-				return err
-			}
-			changes["ResumeId"] = resolvedId
-		}
-		if input.Company.IsSet() {
-			if input.Company.Operation != "select" {
-				return fmt.Errorf("company: updating a one/one? relation only supports the \"select\" operation (link to an existing row by its uniqueId), got %q", input.Company.Operation)
-			}
-			var selectorId string
-			if s, ok := input.Company.Selector.(string); ok {
-				selectorId = s
-			}
-			resolvedId, err := emigorm.ReconcileOne[CompanyEntity](tx, input.Company.Operation, selectorId, nil)
-			if err != nil {
-				return err
-			}
-			changes["CompanyId"] = resolvedId
-		}
+		changes["Company"] = input.Company
 		changes["JobTitle"] = input.JobTitle
 		if input.EmploymentType.IsSet() {
 			changes["EmploymentType"] = input.EmploymentType
@@ -228,16 +171,8 @@ func WorkExperienceEntityUpdateFn(tx *gorm.DB, uniqueId string, input WorkExperi
 		if input.Remote.IsSet() {
 			changes["Remote"] = input.Remote
 		}
-		if input.StartDate.IsSet() {
-			changes["StartDate"] = input.StartDate
-		}
-		if input.EndDate.IsSet() {
-			changes["EndDate"] = input.EndDate
-		}
-		if input.IsCurrent.IsSet() {
-			changes["IsCurrent"] = input.IsCurrent
-		}
-		changes["Summary"] = input.Summary
+		changes["StartDate"] = input.StartDate
+		changes["EndDate"] = input.EndDate
 		if input.Achievements.IsSet() {
 			changes["Achievements"] = input.Achievements
 		}

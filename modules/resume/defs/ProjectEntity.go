@@ -14,18 +14,16 @@ import (
 type ProjectEntity struct {
 	Id           int64                    `gorm:"primaryKey;autoIncrement" json:"-" yaml:"-"`
 	UniqueId     string                   `gorm:"type:varchar(100);default:gen_random_uuid();unique" json:"uniqueId" yaml:"uniqueId"`
-	Resume       *ResumeEntity            `gorm:"foreignKey:ResumeId;references:Id" json:"resume" yaml:"resume"`
 	Name         string                   `json:"name" yaml:"name"`
 	Role         complexes.TString        `json:"role" yaml:"role"`
 	Summary      complexes.TString        `json:"summary" yaml:"summary"`
-	StartDate    emigo.Nullable[string]   `json:"startDate" yaml:"startDate"`
-	EndDate      emigo.Nullable[string]   `json:"endDate" yaml:"endDate"`
+	StartDate    complexes.XDate          `json:"startDate" yaml:"startDate"`
+	EndDate      complexes.XDate          `json:"endDate" yaml:"endDate"`
 	IsOngoing    emigo.Nullable[bool]     `json:"isOngoing" yaml:"isOngoing"`
 	Url          emigo.Nullable[string]   `json:"url" yaml:"url"`
 	RepoUrl      emigo.Nullable[string]   `json:"repoUrl" yaml:"repoUrl"`
 	Technologies emigo.Nullable[[]string] `json:"technologies" yaml:"technologies"`
 	Highlights   emigo.Nullable[[]string] `json:"highlights" yaml:"highlights"`
-	ResumeId     int64                    `gorm:"index" json:"-" yaml:"-"`
 }
 
 func (x *ProjectEntity) Json() string {
@@ -46,10 +44,6 @@ func GetProjectEntityCliFlags(prefix string) []emigo.CliFlag {
 			Type: "string",
 		},
 		{
-			Name: prefix + "resume",
-			Type: "class",
-		},
-		{
 			Name: prefix + "name",
 			Type: "string",
 		},
@@ -63,11 +57,11 @@ func GetProjectEntityCliFlags(prefix string) []emigo.CliFlag {
 		},
 		{
 			Name: prefix + "start-date",
-			Type: "string?",
+			Type: "complex",
 		},
 		{
 			Name: prefix + "end-date",
-			Type: "string?",
+			Type: "complex",
 		},
 		{
 			Name: prefix + "is-ongoing",
@@ -88,10 +82,6 @@ func GetProjectEntityCliFlags(prefix string) []emigo.CliFlag {
 		{
 			Name: prefix + "highlights",
 			Type: "slice?",
-		},
-		{
-			Name: prefix + "resume-id",
-			Type: "int64",
 		},
 	}
 }
@@ -117,10 +107,14 @@ func CastProjectEntityFromCli(c emigo.CliCastable) ProjectEntity {
 		}
 	}
 	if c.IsSet("start-date") {
-		emigo.ParseNullable(c.String("start-date"), &data.StartDate)
+		if u, ok := any(&data.StartDate).(encoding.TextUnmarshaler); ok {
+			u.UnmarshalText([]byte(c.String("start-date")))
+		}
 	}
 	if c.IsSet("end-date") {
-		emigo.ParseNullable(c.String("end-date"), &data.EndDate)
+		if u, ok := any(&data.EndDate).(encoding.TextUnmarshaler); ok {
+			u.UnmarshalText([]byte(c.String("end-date")))
+		}
 	}
 	if c.IsSet("is-ongoing") {
 		emigo.ParseNullable(c.String("is-ongoing"), &data.IsOngoing)
@@ -136,9 +130,6 @@ func CastProjectEntityFromCli(c emigo.CliCastable) ProjectEntity {
 	}
 	if c.IsSet("highlights") {
 		emigo.ParseNullable(c.String("highlights"), &data.Highlights)
-	}
-	if c.IsSet("resume-id") {
-		data.ResumeId = int64(c.Int64("resume-id"))
 	}
 	return data
 }
@@ -181,31 +172,13 @@ func ProjectEntityUpdateFn(tx *gorm.DB, uniqueId string, input ProjectOptionalDt
 			return err
 		}
 		changes := map[string]interface{}{}
-		if input.Resume.IsSet() {
-			if input.Resume.Operation != "select" {
-				return fmt.Errorf("resume: updating a one/one? relation only supports the \"select\" operation (link to an existing row by its uniqueId), got %q", input.Resume.Operation)
-			}
-			var selectorId string
-			if s, ok := input.Resume.Selector.(string); ok {
-				selectorId = s
-			}
-			resolvedId, err := emigorm.ReconcileOne[ResumeEntity](tx, input.Resume.Operation, selectorId, nil)
-			if err != nil {
-				return err
-			}
-			changes["ResumeId"] = resolvedId
-		}
 		if input.Name.IsSet() {
 			changes["Name"] = input.Name
 		}
 		changes["Role"] = input.Role
 		changes["Summary"] = input.Summary
-		if input.StartDate.IsSet() {
-			changes["StartDate"] = input.StartDate
-		}
-		if input.EndDate.IsSet() {
-			changes["EndDate"] = input.EndDate
-		}
+		changes["StartDate"] = input.StartDate
+		changes["EndDate"] = input.EndDate
 		if input.IsOngoing.IsSet() {
 			changes["IsOngoing"] = input.IsOngoing
 		}

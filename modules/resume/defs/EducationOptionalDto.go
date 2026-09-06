@@ -9,15 +9,14 @@ import (
 
 // The base class definition for educationOptionalDto
 type EducationOptionalDto struct {
-	UniqueId    emigo.Nullable[string]       `json:"uniqueId" yaml:"uniqueId"`
-	Resume      emigo.OneNullable[ResumeDto] `json:"resume" yaml:"resume"`
-	Institution emigo.Nullable[string]       `json:"institution" yaml:"institution"`
+	UniqueId    emigo.Nullable[string] `json:"uniqueId" yaml:"uniqueId"`
+	Institution emigo.Nullable[string] `json:"institution" yaml:"institution"`
 	// e.g. "B.Sc.", "M.Sc.", "Bootcamp certificate".
 	Degree       complexes.TString      `json:"degree" yaml:"degree"`
 	FieldOfStudy complexes.TString      `json:"fieldOfStudy" yaml:"fieldOfStudy"`
 	Location     complexes.TString      `json:"location" yaml:"location"`
-	StartDate    emigo.Nullable[string] `json:"startDate" yaml:"startDate"`
-	EndDate      emigo.Nullable[string] `json:"endDate" yaml:"endDate"`
+	StartDate    complexes.XDate        `json:"startDate" yaml:"startDate"`
+	EndDate      complexes.XDate        `json:"endDate" yaml:"endDate"`
 	IsCurrent    emigo.Nullable[bool]   `json:"isCurrent" yaml:"isCurrent"`
 	Grade        emigo.Nullable[string] `json:"grade" yaml:"grade"`
 	Description  complexes.TString      `json:"description" yaml:"description"`
@@ -35,10 +34,6 @@ func GetEducationOptionalDtoCliFlags(prefix string) []emigo.CliFlag {
 		{
 			Name: prefix + "unique-id",
 			Type: "string?",
-		},
-		{
-			Name: prefix + "resume",
-			Type: "one?",
 		},
 		{
 			Name: prefix + "institution",
@@ -59,11 +54,11 @@ func GetEducationOptionalDtoCliFlags(prefix string) []emigo.CliFlag {
 		},
 		{
 			Name: prefix + "start-date",
-			Type: "string?",
+			Type: "complex",
 		},
 		{
 			Name: prefix + "end-date",
-			Type: "string?",
+			Type: "complex",
 		},
 		{
 			Name: prefix + "is-current",
@@ -84,9 +79,6 @@ func CastEducationOptionalDtoFromCli(c emigo.CliCastable) EducationOptionalDto {
 	if c.IsSet("unique-id") {
 		emigo.ParseNullable(c.String("unique-id"), &data.UniqueId)
 	}
-	if c.IsSet("resume") {
-		data.Resume = emigo.CapturePossibleOneNullable(CastResumeDtoFromCli, "resume", c)
-	}
 	if c.IsSet("institution") {
 		emigo.ParseNullable(c.String("institution"), &data.Institution)
 	}
@@ -106,10 +98,14 @@ func CastEducationOptionalDtoFromCli(c emigo.CliCastable) EducationOptionalDto {
 		}
 	}
 	if c.IsSet("start-date") {
-		emigo.ParseNullable(c.String("start-date"), &data.StartDate)
+		if u, ok := any(&data.StartDate).(encoding.TextUnmarshaler); ok {
+			u.UnmarshalText([]byte(c.String("start-date")))
+		}
 	}
 	if c.IsSet("end-date") {
-		emigo.ParseNullable(c.String("end-date"), &data.EndDate)
+		if u, ok := any(&data.EndDate).(encoding.TextUnmarshaler); ok {
+			u.UnmarshalText([]byte(c.String("end-date")))
+		}
 	}
 	if c.IsSet("is-current") {
 		emigo.ParseNullable(c.String("is-current"), &data.IsCurrent)

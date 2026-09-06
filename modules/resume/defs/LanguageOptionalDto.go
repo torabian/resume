@@ -9,10 +9,9 @@ import (
 
 // The base class definition for languageOptionalDto
 type LanguageOptionalDto struct {
-	UniqueId    emigo.Nullable[string]       `json:"uniqueId" yaml:"uniqueId"`
-	Resume      emigo.OneNullable[ResumeDto] `json:"resume" yaml:"resume"`
-	Name        complexes.TString            `json:"name" yaml:"name"`
-	Proficiency emigo.Nullable[string]       `json:"proficiency" yaml:"proficiency"`
+	UniqueId    emigo.Nullable[string] `json:"uniqueId" yaml:"uniqueId"`
+	Name        complexes.TString      `json:"name" yaml:"name"`
+	Proficiency emigo.Nullable[string] `json:"proficiency" yaml:"proficiency"`
 }
 
 func (x *LanguageOptionalDto) Json() string {
@@ -29,10 +28,6 @@ func GetLanguageOptionalDtoCliFlags(prefix string) []emigo.CliFlag {
 			Type: "string?",
 		},
 		{
-			Name: prefix + "resume",
-			Type: "one?",
-		},
-		{
 			Name: prefix + "name",
 			Type: "complex",
 		},
@@ -46,9 +41,6 @@ func CastLanguageOptionalDtoFromCli(c emigo.CliCastable) LanguageOptionalDto {
 	data := LanguageOptionalDto{}
 	if c.IsSet("unique-id") {
 		emigo.ParseNullable(c.String("unique-id"), &data.UniqueId)
-	}
-	if c.IsSet("resume") {
-		data.Resume = emigo.CapturePossibleOneNullable(CastResumeDtoFromCli, "resume", c)
 	}
 	if c.IsSet("name") {
 		if u, ok := any(&data.Name).(encoding.TextUnmarshaler); ok {

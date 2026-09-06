@@ -9,19 +9,16 @@ import (
 
 // The base class definition for workExperienceDto
 type WorkExperienceDto struct {
-	UniqueId       emigo.Nullable[string]        `json:"uniqueId" yaml:"uniqueId"`
-	Resume         emigo.OneNullable[ResumeDto]  `json:"resume" yaml:"resume"`
-	Company        emigo.OneNullable[CompanyDto] `json:"company" yaml:"company"`
-	JobTitle       complexes.TString             `json:"jobTitle" yaml:"jobTitle"`
-	EmploymentType emigo.Nullable[string]        `json:"employmentType" yaml:"employmentType"`
-	Location       complexes.TString             `json:"location" yaml:"location"`
-	Remote         emigo.Nullable[bool]          `json:"remote" yaml:"remote"`
+	UniqueId       emigo.Nullable[string] `json:"uniqueId" yaml:"uniqueId"`
+	Company        complexes.TString      `json:"company" yaml:"company"`
+	JobTitle       complexes.TString      `json:"jobTitle" yaml:"jobTitle"`
+	EmploymentType emigo.Nullable[string] `json:"employmentType" yaml:"employmentType"`
+	Location       complexes.TString      `json:"location" yaml:"location"`
+	Remote         emigo.Nullable[bool]   `json:"remote" yaml:"remote"`
 	// ISO-8601 date, e.g. "2021-03-01".
-	StartDate string `json:"startDate" yaml:"startDate"`
+	StartDate complexes.XDate `json:"startDate" yaml:"startDate"`
 	// ISO-8601 date. Empty/omitted when isCurrent is true.
-	EndDate      emigo.Nullable[string]   `json:"endDate" yaml:"endDate"`
-	IsCurrent    emigo.Nullable[bool]     `json:"isCurrent" yaml:"isCurrent"`
-	Summary      complexes.TString        `json:"summary" yaml:"summary"`
+	EndDate      complexes.XDate          `json:"endDate" yaml:"endDate"`
 	Achievements emigo.Nullable[[]string] `json:"achievements" yaml:"achievements"`
 }
 
@@ -39,12 +36,8 @@ func GetWorkExperienceDtoCliFlags(prefix string) []emigo.CliFlag {
 			Type: "string?",
 		},
 		{
-			Name: prefix + "resume",
-			Type: "one?",
-		},
-		{
 			Name: prefix + "company",
-			Type: "one?",
+			Type: "complex",
 		},
 		{
 			Name: prefix + "job-title",
@@ -64,21 +57,13 @@ func GetWorkExperienceDtoCliFlags(prefix string) []emigo.CliFlag {
 		},
 		{
 			Name:        prefix + "start-date",
-			Type:        "string",
+			Type:        "complex",
 			Description: "ISO-8601 date, e.g. \"2021-03-01\".",
 		},
 		{
 			Name:        prefix + "end-date",
-			Type:        "string?",
+			Type:        "complex",
 			Description: "ISO-8601 date. Empty/omitted when isCurrent is true.",
-		},
-		{
-			Name: prefix + "is-current",
-			Type: "bool?",
-		},
-		{
-			Name: prefix + "summary",
-			Type: "complex",
 		},
 		{
 			Name: prefix + "achievements",
@@ -91,11 +76,10 @@ func CastWorkExperienceDtoFromCli(c emigo.CliCastable) WorkExperienceDto {
 	if c.IsSet("unique-id") {
 		emigo.ParseNullable(c.String("unique-id"), &data.UniqueId)
 	}
-	if c.IsSet("resume") {
-		data.Resume = emigo.CapturePossibleOneNullable(CastResumeDtoFromCli, "resume", c)
-	}
 	if c.IsSet("company") {
-		data.Company = emigo.CapturePossibleOneNullable(CastCompanyDtoFromCli, "company", c)
+		if u, ok := any(&data.Company).(encoding.TextUnmarshaler); ok {
+			u.UnmarshalText([]byte(c.String("company")))
+		}
 	}
 	if c.IsSet("job-title") {
 		if u, ok := any(&data.JobTitle).(encoding.TextUnmarshaler); ok {
@@ -114,17 +98,13 @@ func CastWorkExperienceDtoFromCli(c emigo.CliCastable) WorkExperienceDto {
 		emigo.ParseNullable(c.String("remote"), &data.Remote)
 	}
 	if c.IsSet("start-date") {
-		data.StartDate = c.String("start-date")
+		if u, ok := any(&data.StartDate).(encoding.TextUnmarshaler); ok {
+			u.UnmarshalText([]byte(c.String("start-date")))
+		}
 	}
 	if c.IsSet("end-date") {
-		emigo.ParseNullable(c.String("end-date"), &data.EndDate)
-	}
-	if c.IsSet("is-current") {
-		emigo.ParseNullable(c.String("is-current"), &data.IsCurrent)
-	}
-	if c.IsSet("summary") {
-		if u, ok := any(&data.Summary).(encoding.TextUnmarshaler); ok {
-			u.UnmarshalText([]byte(c.String("summary")))
+		if u, ok := any(&data.EndDate).(encoding.TextUnmarshaler); ok {
+			u.UnmarshalText([]byte(c.String("end-date")))
 		}
 	}
 	if c.IsSet("achievements") {

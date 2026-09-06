@@ -25,13 +25,21 @@ description: |
   row can carry both an English and a Persian rendering of the same field
   instead of needing a whole separate resume per language. Proper
   nouns/identifiers (a person's fullName, a company's legal name, a skill or
-  project's own name, an institution, urls/emails/ids/dates, enums) stay
-  plain `string(?)` - they aren't translated, they're the same value in
-  every language. String *slices* (achievements, technologies, highlights)
-  are left alone too, even where individual bullets are genuinely
-  translatable prose - TString has no array counterpart here without a
-  bigger structural change (each item becoming its own array/collection
-  child row) than this pass covers.
+  project's own name, an institution, urls/emails/ids, enums) stay plain
+  `string(?)` - they aren't translated, they're the same value in every
+  language. String *slices* (achievements, technologies, highlights) are
+  left alone too, even where individual bullets are genuinely translatable
+  prose - TString has no array counterpart here without a bigger structural
+  change (each item becoming its own array/collection child row) than this
+  pass covers.
+
+  Dates: every `startDate`/`endDate` pair (workExperience, education,
+  project) is `complex(?): XDate` (see ../definitions/complexes.emi.yml) -
+  same locale-agnostic parse/format/persian-calendar handling every other
+  XDate field in this codebase gets (e.g. ../../../nima/modules/entitlement/
+  Entitlement.emi.yml's own startDate/endDate), stored as a real SQL `date`
+  column instead of free text. `issueDate`/`expirationDate` on certification
+  are left plain `string(?)` for now - not touched by this pass.
 
 targets:
   # Same shape as ../../../nima/modules/score/Score.emi.yml's own js target
@@ -92,6 +100,21 @@ entities:
         type: complex?
         complex: TString
 
+  - name: targetPosition
+    description:  >-
+      Target position is a reference point, which a resume is targetting some specific type of positions.
+      For example, a person can have target position of 
+      - Fullstack JavaDeveloper.
+      - React front-end developer.
+
+      These are not resumes, rather reference point that a person can adjust the content of
+      the position and project towards and specific position.
+
+    fields:
+      - name: name
+        type: complex
+        complex: TString
+
   - name: resume
     description: >
       Root aggregate for a single resume/CV. Sections (work experience,
@@ -136,12 +159,9 @@ entities:
   - name: workExperience
     description: A single employment period, linked to a Company and a Resume.
     fields:
-      - name: resume
-        type: one
-        target: ResumeEntity
       - name: company
-        type: one?
-        target: CompanyEntity
+        type: complex
+        complex: TString
       - name: jobTitle
         type: complex
         complex: TString
@@ -159,22 +179,14 @@ entities:
       - name: remote
         type: bool?
       - name: startDate
-        type: string
+        type: complex
+        complex: XDate
         description: ISO-8601 date, e.g. "2021-03-01".
       - name: endDate
-        type: string?
-        description: ISO-8601 date. Empty/omitted when isCurrent is true.
-      - name: isCurrent
-        type: bool?
-      - name: summary
         type: complex?
-        complex: TString
-      # Bullet points describing impact/responsibilities. Left a plain
-      # string slice rather than an array of TString - emi's `array` type
-      # models a real has-many child struct, a bigger structural change
-      # than this pass's scope (see Resume.emi.yml's top-of-file note under
-      # "Translatable fields"). Revisit if per-bullet translation is
-      # actually needed.
+        complex: XDate
+        description: ISO-8601 date. Empty/omitted when isCurrent is true.
+
       - name: achievements
         type: slice?
         primitive: string
@@ -182,9 +194,7 @@ entities:
   - name: education
     description: A single degree/program, linked to a Resume.
     fields:
-      - name: resume
-        type: one
-        target: ResumeEntity
+
       # An institution's own name - proper noun, not translated.
       - name: institution
         type: string
@@ -199,9 +209,11 @@ entities:
         type: complex?
         complex: TString
       - name: startDate
-        type: string?
+        type: complex?
+        complex: XDate
       - name: endDate
-        type: string?
+        type: complex?
+        complex: XDate
       - name: isCurrent
         type: bool?
       - name: grade
@@ -213,9 +225,7 @@ entities:
   - name: skill
     description: A single skill/technology entry, linked to a Resume.
     fields:
-      - name: resume
-        type: one
-        target: ResumeEntity
+
       # A skill/technology's own name (e.g. "Go", "React") - not translated.
       - name: name
         type: string
@@ -247,9 +257,7 @@ entities:
   - name: project
     description: A portfolio/side/work project entry, linked to a Resume.
     fields:
-      - name: resume
-        type: one
-        target: ResumeEntity
+
       # A project's own name - proper noun, not translated.
       - name: name
         type: string
@@ -260,9 +268,11 @@ entities:
         type: complex?
         complex: TString
       - name: startDate
-        type: string?
+        type: complex?
+        complex: XDate
       - name: endDate
-        type: string?
+        type: complex?
+        complex: XDate
       - name: isOngoing
         type: bool?
       - name: url
@@ -279,9 +289,7 @@ entities:
   - name: certification
     description: A certification/license entry, linked to a Resume.
     fields:
-      - name: resume
-        type: one
-        target: ResumeEntity
+
       # Unlike the other entities' `name`, a certification's name is
       # descriptive prose ("C and C+E driving license") rather than a fixed
       # proper noun, so it's translatable.
@@ -303,9 +311,7 @@ entities:
   - name: language
     description: A spoken/written language proficiency entry, linked to a Resume.
     fields:
-      - name: resume
-        type: one
-        target: ResumeEntity
+
       # The language's own display name (e.g. "Persian (Farsi)") -
       # translatable, unlike every other entity's `name`: a Persian reader
       # should see "فارسی", not the English word "Persian".

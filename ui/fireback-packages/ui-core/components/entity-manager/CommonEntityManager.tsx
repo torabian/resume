@@ -134,9 +134,31 @@ export const CommonEntityManager = ({
     // it comes out fully plain at every depth, not just the top level.
     const item = rawItem ? JSON.parse(JSON.stringify(rawItem)) : undefined;
     if (item) {
-      formik.current?.setValues(
-        beforeSetValues ? beforeSetValues({ ...item }) : { ...item },
-      );
+      const values = beforeSetValues
+        ? beforeSetValues({ ...item })
+        : { ...item };
+
+      formik.current?.setValues(values);
+
+      // Bug fix: onSubmit below builds its payload from touchedData.current,
+      // not form.values - only Form's wrapped setValues/setFieldValue (see
+      // the `form` prop passed to `<Form .../>` further down) write into it,
+      // and this effect calls the *raw* formik.current.setValues directly,
+      // bypassing that wrapper entirely. touchedData.current was therefore
+      // still `{}` on a save where the user never touched any field - every
+      // field editable by this form went missing from the submitted JSON,
+      // not just uniqueId. For a Nullable-wrapped field the backend's
+      // generated Update is guarded by input.X.IsSet(), so a field missing
+      // from the payload is harmlessly left alone - but a plain `complex`
+      // field (TString/XDate: no IsSet() concept, since there's no wire
+      // representation for "not provided" distinct from its zero value) is
+      // applied unconditionally, so the missing field was written back as
+      // empty/blank, wiping whatever the record actually had. Seeding
+      // touchedData.current with this same normalized snapshot means an
+      // untouched save round-trips the record as-is, and only fields the
+      // user actually edits (via the wrapped setValues/setFieldValue) get
+      // overwritten on top of it.
+      touchedData.current = { ...values };
 
       setInitialData(item);
     }

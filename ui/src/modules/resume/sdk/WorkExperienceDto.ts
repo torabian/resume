@@ -1,7 +1,4 @@
-import { CompanyDto } from "./CompanyDto";
-import { MOne } from "@fireback/js-remote-ctx/common/operators";
-import { ResumeDto } from "./ResumeDto";
-import { TString } from "@fireback/complexes";
+import { TString, XDate } from "@fireback/complexes";
 import { type PartialDeep } from "@fireback/js-remote-ctx/common/fetchx";
 /**
  * The base class definition for workExperienceDto
@@ -34,119 +31,28 @@ export class WorkExperienceDto {
   }
   /**
    *
-   * @type {ResumeDto}
+   * @type {TString}
    **/
-  #resume?: MOne<ResumeDto> | null | undefined = undefined;
+  #company!: TString;
   /**
    *
-   * @returns {ResumeDto}
-   **/
-  get resume() {
-    return this.#resume;
-  }
-  /**
-   *
-   * @type {ResumeDto}
-   **/
-  set resume(
-    value:
-      | MOne<ResumeDto>
-      | null
-      | undefined
-      | InstanceType<typeof ResumeDto>
-      | null
-      | undefined,
-  ) {
-    // For a nullable relation, a literal null is a deliberate "clear"
-    // signal and has to stay null - not fall through to the else branch
-    // below and become MOne.of(new ResumeDto(null)) (the
-    // constructor tolerates a null/undefined argument by returning an
-    // empty-but-non-null instance), which serializes as an empty object
-    // instead of null. The backend tells "explicitly cleared" apart from
-    // "field left untouched" (an absent key) only by seeing a real null
-    // on the wire, the same way every other nullable field here (array?,
-    // collection?) already short-circuits on null/undefined above.
-    if (value === null || value === undefined) {
-      this.#resume = value === null ? null : undefined;
-      return;
-    }
-    // For objects, the sub type needs to always be instance of the sub class.
-    if (value instanceof MOne) {
-      this.#resume = value;
-    } else if (value instanceof ResumeDto) {
-      this.#resume = MOne.of(value);
-    } else {
-      this.#resume = MOne.of(new ResumeDto(value));
-    }
-  }
-  setResume(
-    value:
-      | MOne<ResumeDto>
-      | null
-      | undefined
-      | InstanceType<typeof ResumeDto>
-      | null
-      | undefined,
-  ) {
-    this.resume = value;
-    return this;
-  }
-  /**
-   *
-   * @type {CompanyDto}
-   **/
-  #company?: MOne<CompanyDto> | null | undefined = undefined;
-  /**
-   *
-   * @returns {CompanyDto}
+   * @returns {TString}
    **/
   get company() {
     return this.#company;
   }
   /**
    *
-   * @type {CompanyDto}
+   * @type {TString}
    **/
-  set company(
-    value:
-      | MOne<CompanyDto>
-      | null
-      | undefined
-      | InstanceType<typeof CompanyDto>
-      | null
-      | undefined,
-  ) {
-    // For a nullable relation, a literal null is a deliberate "clear"
-    // signal and has to stay null - not fall through to the else branch
-    // below and become MOne.of(new CompanyDto(null)) (the
-    // constructor tolerates a null/undefined argument by returning an
-    // empty-but-non-null instance), which serializes as an empty object
-    // instead of null. The backend tells "explicitly cleared" apart from
-    // "field left untouched" (an absent key) only by seeing a real null
-    // on the wire, the same way every other nullable field here (array?,
-    // collection?) already short-circuits on null/undefined above.
-    if (value === null || value === undefined) {
-      this.#company = value === null ? null : undefined;
-      return;
-    }
-    // For objects, the sub type needs to always be instance of the sub class.
-    if (value instanceof MOne) {
+  set company(value: TString) {
+    if (value instanceof TString) {
       this.#company = value;
-    } else if (value instanceof CompanyDto) {
-      this.#company = MOne.of(value);
     } else {
-      this.#company = MOne.of(new CompanyDto(value));
+      this.#company = new TString(value);
     }
   }
-  setCompany(
-    value:
-      | MOne<CompanyDto>
-      | null
-      | undefined
-      | InstanceType<typeof CompanyDto>
-      | null
-      | undefined,
-  ) {
+  setCompany(value: TString) {
     this.company = value;
     return this;
   }
@@ -266,114 +172,65 @@ export class WorkExperienceDto {
   }
   /**
    * ISO-8601 date, e.g. "2021-03-01".
-   * @type {string}
+   * @type {XDate}
    **/
-  #startDate: string = "";
+  #startDate!: XDate;
   /**
    * ISO-8601 date, e.g. "2021-03-01".
-   * @returns {string}
+   * @returns {XDate}
    **/
   get startDate() {
     return this.#startDate;
   }
   /**
    * ISO-8601 date, e.g. "2021-03-01".
-   * @type {string}
+   * @type {XDate}
    **/
-  set startDate(value: string) {
-    this.#startDate = String(value);
+  set startDate(value: XDate) {
+    if (value instanceof XDate) {
+      this.#startDate = value;
+    } else {
+      this.#startDate = new XDate(value);
+    }
   }
-  setStartDate(value: string) {
+  setStartDate(value: XDate) {
     this.startDate = value;
     return this;
   }
   /**
    * ISO-8601 date. Empty/omitted when isCurrent is true.
-   * @type {string}
+   * @type {XDate}
    **/
-  #endDate?: string | null | undefined = undefined;
+  #endDate?: XDate | null | undefined = undefined;
   /**
    * ISO-8601 date. Empty/omitted when isCurrent is true.
-   * @returns {string}
+   * @returns {XDate}
    **/
   get endDate() {
     return this.#endDate;
   }
   /**
    * ISO-8601 date. Empty/omitted when isCurrent is true.
-   * @type {string}
+   * @type {XDate}
    **/
-  set endDate(value: string | null | undefined) {
-    const correctType =
-      typeof value === "string" || value === undefined || value === null;
-    this.#endDate = correctType ? value : String(value);
-  }
-  setEndDate(value: string | null | undefined) {
-    this.endDate = value;
-    return this;
-  }
-  /**
-   *
-   * @type {boolean}
-   **/
-  #isCurrent?: boolean | null | undefined = undefined;
-  /**
-   *
-   * @returns {boolean}
-   **/
-  get isCurrent() {
-    return this.#isCurrent;
-  }
-  /**
-   *
-   * @type {boolean}
-   **/
-  set isCurrent(value: boolean | null | undefined) {
-    const correctType =
-      value === true ||
-      value === false ||
-      value === undefined ||
-      value === null;
-    this.#isCurrent = correctType ? value : Boolean(value);
-  }
-  setIsCurrent(value: boolean | null | undefined) {
-    this.isCurrent = value;
-    return this;
-  }
-  /**
-   *
-   * @type {TString}
-   **/
-  #summary?: TString | null | undefined = undefined;
-  /**
-   *
-   * @returns {TString}
-   **/
-  get summary() {
-    return this.#summary;
-  }
-  /**
-   *
-   * @type {TString}
-   **/
-  set summary(value: TString | null | undefined) {
+  set endDate(value: XDate | null | undefined) {
     // For a nullable complex field, an explicit undefined/null is a
     // deliberate value and has to pass through untouched - same as every
     // other nullable field's setter (array?, one?, object?, ...) above.
     // Anything else always becomes a real instance, exactly like a
     // non-nullable "complex" field does.
     if (value === null || value === undefined) {
-      this.#summary = value === null ? null : undefined;
+      this.#endDate = value === null ? null : undefined;
       return;
     }
-    if (value instanceof TString) {
-      this.#summary = value;
+    if (value instanceof XDate) {
+      this.#endDate = value;
     } else {
-      this.#summary = new TString(value);
+      this.#endDate = new XDate(value);
     }
   }
-  setSummary(value: TString | null | undefined) {
-    this.summary = value;
+  setEndDate(value: XDate | null | undefined) {
+    this.endDate = value;
     return this;
   }
   /**
@@ -407,9 +264,6 @@ export class WorkExperienceDto {
       uniqueId: {
         type: "string",
         title: "unique_id_title",
-      },
-      resume: {
-        title: "resume_title",
       },
       company: {
         title: "company_title",
@@ -451,21 +305,12 @@ export class WorkExperienceDto {
         title: "remote_title",
       },
       startDate: {
-        type: "string",
         title: "start_date_title",
         description: "start_date_description",
       },
       endDate: {
-        type: "string",
         title: "end_date_title",
         description: "end_date_description",
-      },
-      isCurrent: {
-        type: "boolean",
-        title: "is_current_title",
-      },
-      summary: {
-        title: "summary_title",
       },
       achievements: {
         type: "array",
@@ -475,14 +320,13 @@ export class WorkExperienceDto {
         },
       },
     },
-    required: ["jobTitle", "startDate"],
+    required: ["company", "jobTitle", "startDate"],
   };
   static DefaultTranslations = {
     $title: "WorkExperienceDto",
     $description:
       'Plain dto mirroring the "workExperience" entity\'s own fields.',
     unique_id_title: "Unique Id",
-    resume_title: "Resume",
     company_title: "Company",
     job_title_title: "Job Title",
     employment_type_enum_full_time: "fullTime",
@@ -498,8 +342,6 @@ export class WorkExperienceDto {
     end_date_title: "End Date",
     end_date_description:
       "ISO-8601 date. Empty/omitted when isCurrent is true.",
-    is_current_title: "Is Current",
-    summary_title: "Summary",
     achievements_title: "Achievements",
   } as const;
   constructor(data: unknown = undefined) {
@@ -541,9 +383,6 @@ export class WorkExperienceDto {
     if (d.uniqueId !== undefined) {
       this.uniqueId = d.uniqueId;
     }
-    if (d.resume !== undefined) {
-      this.resume = d.resume;
-    }
     if (d.company !== undefined) {
       this.company = d.company;
     }
@@ -565,12 +404,6 @@ export class WorkExperienceDto {
     if (d.endDate !== undefined) {
       this.endDate = d.endDate;
     }
-    if (d.isCurrent !== undefined) {
-      this.isCurrent = d.isCurrent;
-    }
-    if (d.summary !== undefined) {
-      this.summary = d.summary;
-    }
     if (d.achievements !== undefined) {
       this.achievements = d.achievements;
     }
@@ -582,7 +415,6 @@ export class WorkExperienceDto {
   toJSON() {
     return {
       uniqueId: this.#uniqueId,
-      resume: this.#resume,
       company: this.#company,
       jobTitle: this.#jobTitle,
       employmentType: this.#employmentType,
@@ -590,8 +422,6 @@ export class WorkExperienceDto {
       remote: this.#remote,
       startDate: this.#startDate,
       endDate: this.#endDate,
-      isCurrent: this.#isCurrent,
-      summary: this.#summary,
       achievements: this.#achievements,
     };
   }
@@ -601,7 +431,6 @@ export class WorkExperienceDto {
   static get Fields() {
     return {
       uniqueId: "uniqueId",
-      resume: "resume",
       company: "company",
       jobTitle: "jobTitle",
       employmentType: "employmentType",
@@ -609,8 +438,6 @@ export class WorkExperienceDto {
       remote: "remote",
       startDate: "startDate",
       endDate: "endDate",
-      isCurrent: "isCurrent",
-      summary: "summary",
       achievements: "achievements",
     };
   }
@@ -659,14 +486,9 @@ export type WorkExperienceDtoType = {
   uniqueId?: string;
   /**
    *
-   * @type {ResumeDto}
+   * @type {TString}
    **/
-  resume?: ResumeDto;
-  /**
-   *
-   * @type {CompanyDto}
-   **/
-  company?: CompanyDto;
+  company: TString;
   /**
    *
    * @type {TString}
@@ -689,24 +511,14 @@ export type WorkExperienceDtoType = {
   remote?: boolean;
   /**
    * ISO-8601 date, e.g. "2021-03-01".
-   * @type {string}
+   * @type {XDate}
    **/
-  startDate: string;
+  startDate: XDate;
   /**
    * ISO-8601 date. Empty/omitted when isCurrent is true.
-   * @type {string}
+   * @type {XDate}
    **/
-  endDate?: string;
-  /**
-   *
-   * @type {boolean}
-   **/
-  isCurrent?: boolean;
-  /**
-   *
-   * @type {TString}
-   **/
-  summary?: TString;
+  endDate?: XDate;
   /**
    *
    * @type {any}

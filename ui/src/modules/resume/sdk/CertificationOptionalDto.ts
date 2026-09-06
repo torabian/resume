@@ -1,5 +1,3 @@
-import { MOne } from "@fireback/js-remote-ctx/common/operators";
-import { ResumeDto } from "./ResumeDto";
 import { TString } from "@fireback/complexes";
 import { type PartialDeep } from "@fireback/js-remote-ctx/common/fetchx";
 /**
@@ -29,65 +27,6 @@ export class CertificationOptionalDto {
   }
   setUniqueId(value: string | null | undefined) {
     this.uniqueId = value;
-    return this;
-  }
-  /**
-   *
-   * @type {ResumeDto}
-   **/
-  #resume?: MOne<ResumeDto> | null | undefined = undefined;
-  /**
-   *
-   * @returns {ResumeDto}
-   **/
-  get resume() {
-    return this.#resume;
-  }
-  /**
-   *
-   * @type {ResumeDto}
-   **/
-  set resume(
-    value:
-      | MOne<ResumeDto>
-      | null
-      | undefined
-      | InstanceType<typeof ResumeDto>
-      | null
-      | undefined,
-  ) {
-    // For a nullable relation, a literal null is a deliberate "clear"
-    // signal and has to stay null - not fall through to the else branch
-    // below and become MOne.of(new ResumeDto(null)) (the
-    // constructor tolerates a null/undefined argument by returning an
-    // empty-but-non-null instance), which serializes as an empty object
-    // instead of null. The backend tells "explicitly cleared" apart from
-    // "field left untouched" (an absent key) only by seeing a real null
-    // on the wire, the same way every other nullable field here (array?,
-    // collection?) already short-circuits on null/undefined above.
-    if (value === null || value === undefined) {
-      this.#resume = value === null ? null : undefined;
-      return;
-    }
-    // For objects, the sub type needs to always be instance of the sub class.
-    if (value instanceof MOne) {
-      this.#resume = value;
-    } else if (value instanceof ResumeDto) {
-      this.#resume = MOne.of(value);
-    } else {
-      this.#resume = MOne.of(new ResumeDto(value));
-    }
-  }
-  setResume(
-    value:
-      | MOne<ResumeDto>
-      | null
-      | undefined
-      | InstanceType<typeof ResumeDto>
-      | null
-      | undefined,
-  ) {
-    this.resume = value;
     return this;
   }
   /**
@@ -251,9 +190,6 @@ export class CertificationOptionalDto {
         type: "string",
         title: "unique_id_title",
       },
-      resume: {
-        title: "resume_title",
-      },
       name: {
         title: "name_title",
       },
@@ -285,7 +221,6 @@ export class CertificationOptionalDto {
     $description:
       "Every field of the \"certification\" entity, but optional - used both as Update's partial input and as Browse's response item shape.",
     unique_id_title: "Unique Id",
-    resume_title: "Resume",
     name_title: "Name",
     issuing_organization_title: "Issuing Organization",
     issue_date_title: "Issue Date",
@@ -332,9 +267,6 @@ export class CertificationOptionalDto {
     if (d.uniqueId !== undefined) {
       this.uniqueId = d.uniqueId;
     }
-    if (d.resume !== undefined) {
-      this.resume = d.resume;
-    }
     if (d.name !== undefined) {
       this.name = d.name;
     }
@@ -361,7 +293,6 @@ export class CertificationOptionalDto {
   toJSON() {
     return {
       uniqueId: this.#uniqueId,
-      resume: this.#resume,
       name: this.#name,
       issuingOrganization: this.#issuingOrganization,
       issueDate: this.#issueDate,
@@ -376,7 +307,6 @@ export class CertificationOptionalDto {
   static get Fields() {
     return {
       uniqueId: "uniqueId",
-      resume: "resume",
       name: "name",
       issuingOrganization: "issuingOrganization",
       issueDate: "issueDate",
@@ -428,11 +358,6 @@ export type CertificationOptionalDtoType = {
    * @type {string}
    **/
   uniqueId?: string;
-  /**
-   *
-   * @type {ResumeDto}
-   **/
-  resume?: ResumeDto;
   /**
    *
    * @type {TString}

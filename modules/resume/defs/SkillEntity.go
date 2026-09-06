@@ -14,14 +14,12 @@ import (
 type SkillEntity struct {
 	Id                int64                  `gorm:"primaryKey;autoIncrement" json:"-" yaml:"-"`
 	UniqueId          string                 `gorm:"type:varchar(100);default:gen_random_uuid();unique" json:"uniqueId" yaml:"uniqueId"`
-	Resume            *ResumeEntity          `gorm:"foreignKey:ResumeId;references:Id" json:"resume" yaml:"resume"`
 	Name              string                 `json:"name" yaml:"name"`
 	Category          emigo.Nullable[string] `json:"category" yaml:"category"`
 	Level             emigo.Nullable[string] `json:"level" yaml:"level"`
 	YearsOfExperience emigo.Nullable[int]    `json:"yearsOfExperience" yaml:"yearsOfExperience"`
 	// Longer free-text elaboration on the skill, if any.
 	Description complexes.TString `json:"description" yaml:"description"`
-	ResumeId    int64             `gorm:"index" json:"-" yaml:"-"`
 }
 
 func (x *SkillEntity) Json() string {
@@ -40,10 +38,6 @@ func GetSkillEntityCliFlags(prefix string) []emigo.CliFlag {
 		{
 			Name: prefix + "unique-id",
 			Type: "string",
-		},
-		{
-			Name: prefix + "resume",
-			Type: "class",
 		},
 		{
 			Name: prefix + "name",
@@ -65,10 +59,6 @@ func GetSkillEntityCliFlags(prefix string) []emigo.CliFlag {
 			Name:        prefix + "description",
 			Type:        "complex",
 			Description: "Longer free-text elaboration on the skill, if any.",
-		},
-		{
-			Name: prefix + "resume-id",
-			Type: "int64",
 		},
 	}
 }
@@ -96,9 +86,6 @@ func CastSkillEntityFromCli(c emigo.CliCastable) SkillEntity {
 		if u, ok := any(&data.Description).(encoding.TextUnmarshaler); ok {
 			u.UnmarshalText([]byte(c.String("description")))
 		}
-	}
-	if c.IsSet("resume-id") {
-		data.ResumeId = int64(c.Int64("resume-id"))
 	}
 	return data
 }
@@ -141,20 +128,6 @@ func SkillEntityUpdateFn(tx *gorm.DB, uniqueId string, input SkillOptionalDto) (
 			return err
 		}
 		changes := map[string]interface{}{}
-		if input.Resume.IsSet() {
-			if input.Resume.Operation != "select" {
-				return fmt.Errorf("resume: updating a one/one? relation only supports the \"select\" operation (link to an existing row by its uniqueId), got %q", input.Resume.Operation)
-			}
-			var selectorId string
-			if s, ok := input.Resume.Selector.(string); ok {
-				selectorId = s
-			}
-			resolvedId, err := emigorm.ReconcileOne[ResumeEntity](tx, input.Resume.Operation, selectorId, nil)
-			if err != nil {
-				return err
-			}
-			changes["ResumeId"] = resolvedId
-		}
 		if input.Name.IsSet() {
 			changes["Name"] = input.Name
 		}

@@ -14,10 +14,8 @@ import (
 type LanguageEntity struct {
 	Id          int64                  `gorm:"primaryKey;autoIncrement" json:"-" yaml:"-"`
 	UniqueId    string                 `gorm:"type:varchar(100);default:gen_random_uuid();unique" json:"uniqueId" yaml:"uniqueId"`
-	Resume      *ResumeEntity          `gorm:"foreignKey:ResumeId;references:Id" json:"resume" yaml:"resume"`
 	Name        complexes.TString      `json:"name" yaml:"name"`
 	Proficiency emigo.Nullable[string] `json:"proficiency" yaml:"proficiency"`
-	ResumeId    int64                  `gorm:"index" json:"-" yaml:"-"`
 }
 
 func (x *LanguageEntity) Json() string {
@@ -38,20 +36,12 @@ func GetLanguageEntityCliFlags(prefix string) []emigo.CliFlag {
 			Type: "string",
 		},
 		{
-			Name: prefix + "resume",
-			Type: "class",
-		},
-		{
 			Name: prefix + "name",
 			Type: "complex",
 		},
 		{
 			Name: prefix + "proficiency",
 			Type: "enum?",
-		},
-		{
-			Name: prefix + "resume-id",
-			Type: "int64",
 		},
 	}
 }
@@ -70,9 +60,6 @@ func CastLanguageEntityFromCli(c emigo.CliCastable) LanguageEntity {
 	}
 	if c.IsSet("proficiency") {
 		emigo.ParseNullable(c.String("proficiency"), &data.Proficiency)
-	}
-	if c.IsSet("resume-id") {
-		data.ResumeId = int64(c.Int64("resume-id"))
 	}
 	return data
 }
@@ -115,20 +102,6 @@ func LanguageEntityUpdateFn(tx *gorm.DB, uniqueId string, input LanguageOptional
 			return err
 		}
 		changes := map[string]interface{}{}
-		if input.Resume.IsSet() {
-			if input.Resume.Operation != "select" {
-				return fmt.Errorf("resume: updating a one/one? relation only supports the \"select\" operation (link to an existing row by its uniqueId), got %q", input.Resume.Operation)
-			}
-			var selectorId string
-			if s, ok := input.Resume.Selector.(string); ok {
-				selectorId = s
-			}
-			resolvedId, err := emigorm.ReconcileOne[ResumeEntity](tx, input.Resume.Operation, selectorId, nil)
-			if err != nil {
-				return err
-			}
-			changes["ResumeId"] = resolvedId
-		}
 		changes["Name"] = input.Name
 		if input.Proficiency.IsSet() {
 			changes["Proficiency"] = input.Proficiency

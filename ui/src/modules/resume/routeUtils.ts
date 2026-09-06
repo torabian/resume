@@ -1,5 +1,5 @@
 import { type RJSFSchema, type UiSchema } from "@rjsf/utils";
-import { TStringField } from "@/components/entity-manager/VirtualEntityManager/fields/TStringField";
+import { TStringField } from "@fireback/virtual-entity-manager";
 
 // Shared helpers for every *Routes.tsx in this module (and
 // ../materialized/), factoring out the schema-patching boilerplate
@@ -55,6 +55,31 @@ export function withTStringFields(
 
 export const TSTRING_RJSF_FIELDS = { tstring: TStringField };
 
+/** Patches `fields` on `schema` to `{ type: "string", format: "date" }` -
+ * the shape rjsf's built-in date widget expects, and exactly what
+ * ../../../nima/ui/src/modules/musicalwork/PersonRoutes.tsx's own
+ * birthDate/deathDate patch does (see its comment for why: `complex: XDate`
+ * comes through with no `type` at all, same gap as TString, but XDate really
+ * is just a "YYYY-MM-DD" string on the wire - see complexes/XDateType.go -
+ * so unlike TString it needs no custom field/widget, just the type/format
+ * rjsf already knows how to render). No uiSchema fragment needed, unlike
+ * withTStringFields.
+ */
+export function withXDateFields(schema: RJSFSchema, fields: string[]) {
+  const properties = { ...(schema.properties as any) };
+
+  for (const field of fields) {
+    if (!properties[field]) continue;
+    properties[field] = {
+      ...properties[field],
+      type: "string",
+      format: "date",
+    };
+  }
+
+  return { schema: { ...schema, properties } as RJSFSchema };
+}
+
 /** Generic beforeSetValues: normalizes every non-required property's `null`
  * to `undefined`. Every optional (`?`) scalar field's Go zero value
  * serializes as JSON `null` (never omitted), and ajv rejects `null` against
@@ -62,15 +87,31 @@ export const TSTRING_RJSF_FIELDS = { tstring: TStringField };
  * PersonRoutes.tsx's personBeforeSetValues, which hand-lists the same fix
  * per field) - this covers every entity's optional fields at once instead
  * of listing them by name per *Routes.tsx.
+ *
+ * `emptyStringFields` additionally normalizes `""` to `undefined` for the
+ * listed fields, required or not - needed for optional XDate fields
+ * specifically: their Go zero value is `""` (not `null`, unlike every other
+ * optional scalar), and ajv's `format: "date"` rejects `""` outright too
+ * (see PersonRoutes.tsx's personBeforeSetValues hitting the exact same
+ * issue for birthDate/deathDate). Every other optional field's legitimate
+ * empty string (e.g. an unset `website`) is left alone - only pass the
+ * XDate fields here.
  */
-export function stripNullOptionalValues(schema: RJSFSchema) {
+export function stripNullOptionalValues(
+  schema: RJSFSchema,
+  emptyStringFields: string[] = [],
+) {
   const required = new Set(schema.required ?? []);
   const properties = Object.keys((schema.properties as any) ?? {});
+  const emptyStringFieldSet = new Set(emptyStringFields);
 
   return (data: Record<string, any>) => {
     const out = { ...data };
     for (const key of properties) {
       if (!required.has(key) && out[key] === null) {
+        out[key] = undefined;
+      }
+      if (emptyStringFieldSet.has(key) && out[key] === "") {
         out[key] = undefined;
       }
     }

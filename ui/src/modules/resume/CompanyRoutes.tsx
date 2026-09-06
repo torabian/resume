@@ -1,5 +1,5 @@
 import { type RJSFSchema } from "@rjsf/utils";
-import { VirtualEntityManager } from "@/components/entity-manager/VirtualEntityManager";
+import { VirtualEntityManager, localizeSchema } from "@fireback/virtual-entity-manager";
 import { useCompanyGetActionQuery } from "@/modules/resume/sdk/CompanyGetAction";
 import { useCompanyBrowseActionQuery } from "@/modules/resume/sdk/CompanyBrowseAction";
 import { useCompanyCreateAction } from "@/modules/resume/sdk/CompanyCreateAction";
@@ -7,7 +7,7 @@ import { useCompanyUpdateAction } from "@/modules/resume/sdk/CompanyUpdateAction
 import { useCompanyAwareDeleteAction } from "@/modules/resume/sdk/CompanyAwareDeleteAction";
 import { CompanyDto } from "@/modules/resume/sdk/CompanyDto";
 import { useMemo } from "react";
-import { localizeSchema } from "@/components/entity-manager/VirtualEntityManager/localizeSchema";
+
 import {
   withTStringFields,
   TSTRING_RJSF_FIELDS,

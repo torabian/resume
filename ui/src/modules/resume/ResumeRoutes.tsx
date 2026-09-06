@@ -1,12 +1,12 @@
 import { type RJSFSchema } from "@rjsf/utils";
-import { VirtualEntityManager } from "@/components/entity-manager/VirtualEntityManager";
+import { VirtualEntityManager, localizeSchema } from "@fireback/virtual-entity-manager";
 import { useResumeGetActionQuery } from "@/modules/resume/sdk/ResumeGetAction";
 import { useResumeBrowseActionQuery } from "@/modules/resume/sdk/ResumeBrowseAction";
 import { useResumeCreateAction } from "@/modules/resume/sdk/ResumeCreateAction";
 import { useResumeUpdateAction } from "@/modules/resume/sdk/ResumeUpdateAction";
 import { useResumeAwareDeleteAction } from "@/modules/resume/sdk/ResumeAwareDeleteAction";
 import { ResumeDto } from "@/modules/resume/sdk/ResumeDto";
-import { localizeSchema } from "@/components/entity-manager/VirtualEntityManager/localizeSchema";
+
 import {
   withTStringFields,
   TSTRING_RJSF_FIELDS,

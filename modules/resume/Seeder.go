@@ -207,23 +207,27 @@ func SeedResumeData(db *gorm.DB, seeder *ResumeDataSeeder) (*resumedefs.ResumeEn
 
 		for _, w := range seeder.WorkExperiences {
 			entity := &resumedefs.WorkExperienceEntity{
-				ResumeId:       resume.Id,
 				JobTitle:       w.JobTitle,
 				EmploymentType: emigo.NullableOf(w.EmploymentType),
 				Location:       w.Location,
 				Remote:         emigo.NullableOf(w.Remote),
-				StartDate:      w.StartDate,
-				EndDate:        emigo.NullableOf(w.EndDate),
-				IsCurrent:      emigo.NullableOf(w.IsCurrent),
-				Summary:        w.Summary,
+				StartDate:      complexes.XDate(w.StartDate),
+				EndDate:        complexes.XDate(w.EndDate),
 				Achievements:   emigo.NullableOf(w.Achievements),
 			}
+			// `company` is a plain TString field now, not a relation (see
+			// Resume.emi.yml) - still resolved through the same companies
+			// map keyed by seeder.Companies[].Key, but the looked-up
+			// company's Name is copied in as a value rather than linked by
+			// CompanyId. Note this also means the created row is no longer
+			// scoped to `resume` at all (WorkExperience dropped its
+			// `resume: one` field too) - it's created standalone.
 			if w.Company != "" {
 				company, ok := companies[w.Company]
 				if !ok {
 					return fmt.Errorf("work experience %q references unknown company key %q", w.JobTitle, w.Company)
 				}
-				entity.CompanyId = company.Id
+				entity.Company = complexes.NewTString(company.Name)
 			}
 			if _, err := resumedefs.WorkExperienceEntityActions.Create(tx, entity); err != nil {
 				return fmt.Errorf("creating work experience %q: %w", w.JobTitle, err)
@@ -232,13 +236,13 @@ func SeedResumeData(db *gorm.DB, seeder *ResumeDataSeeder) (*resumedefs.ResumeEn
 
 		for _, e := range seeder.Educations {
 			entity := &resumedefs.EducationEntity{
-				ResumeId:     resume.Id,
+
 				Institution:  e.Institution,
 				Degree:       e.Degree,
 				FieldOfStudy: e.FieldOfStudy,
 				Location:     e.Location,
-				StartDate:    emigo.NullableOf(e.StartDate),
-				EndDate:      emigo.NullableOf(e.EndDate),
+				StartDate:    complexes.XDate(e.StartDate),
+				EndDate:      complexes.XDate(e.EndDate),
 				IsCurrent:    emigo.NullableOf(e.IsCurrent),
 				Grade:        emigo.NullableOf(e.Grade),
 				Description:  e.Description,
@@ -250,7 +254,7 @@ func SeedResumeData(db *gorm.DB, seeder *ResumeDataSeeder) (*resumedefs.ResumeEn
 
 		for _, s := range seeder.Skills {
 			entity := &resumedefs.SkillEntity{
-				ResumeId:          resume.Id,
+
 				Name:              s.Name,
 				Category:          emigo.NullableOf(s.Category),
 				Level:             emigo.NullableOf(s.Level),
@@ -264,12 +268,12 @@ func SeedResumeData(db *gorm.DB, seeder *ResumeDataSeeder) (*resumedefs.ResumeEn
 
 		for _, p := range seeder.Projects {
 			entity := &resumedefs.ProjectEntity{
-				ResumeId:     resume.Id,
+
 				Name:         p.Name,
 				Role:         p.Role,
 				Summary:      p.Summary,
-				StartDate:    emigo.NullableOf(p.StartDate),
-				EndDate:      emigo.NullableOf(p.EndDate),
+				StartDate:    complexes.XDate(p.StartDate),
+				EndDate:      complexes.XDate(p.EndDate),
 				IsOngoing:    emigo.NullableOf(p.IsOngoing),
 				Url:          emigo.NullableOf(p.Url),
 				RepoUrl:      emigo.NullableOf(p.RepoUrl),
@@ -283,7 +287,7 @@ func SeedResumeData(db *gorm.DB, seeder *ResumeDataSeeder) (*resumedefs.ResumeEn
 
 		for _, c := range seeder.Certifications {
 			entity := &resumedefs.CertificationEntity{
-				ResumeId:            resume.Id,
+
 				Name:                c.Name,
 				IssuingOrganization: emigo.NullableOf(c.IssuingOrganization),
 				IssueDate:           emigo.NullableOf(c.IssueDate),
@@ -298,7 +302,7 @@ func SeedResumeData(db *gorm.DB, seeder *ResumeDataSeeder) (*resumedefs.ResumeEn
 
 		for _, l := range seeder.Languages {
 			entity := &resumedefs.LanguageEntity{
-				ResumeId:    resume.Id,
+
 				Name:        l.Name,
 				Proficiency: emigo.NullableOf(l.Proficiency),
 			}
@@ -317,10 +321,10 @@ func SeedResumeData(db *gorm.DB, seeder *ResumeDataSeeder) (*resumedefs.ResumeEn
 }
 
 // deleteExistingResume removes a previously-seeded resume (matched by
-// FullName) and every section row pointing at it via ResumeId, so
+
 // SeedResumeData can be called repeatedly without piling up duplicates.
 // fireback doesn't generate DB-level ON DELETE CASCADE for these
-// relations (see WorkExperienceEntity's `foreignKey:ResumeId` gorm tag),
+
 // so each section is deleted explicitly before the resume row itself.
 func deleteExistingResume(tx *gorm.DB, fullName string) error {
 	if fullName == "" {

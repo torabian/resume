@@ -1,12 +1,12 @@
 import { type RJSFSchema } from "@rjsf/utils";
-import { VirtualEntityManager } from "@/components/entity-manager/VirtualEntityManager";
+import { VirtualEntityManager, localizeSchema } from "@fireback/virtual-entity-manager";
 import { useLanguageGetActionQuery } from "@/modules/resume/sdk/LanguageGetAction";
 import { useLanguageBrowseActionQuery } from "@/modules/resume/sdk/LanguageBrowseAction";
 import { useLanguageCreateAction } from "@/modules/resume/sdk/LanguageCreateAction";
 import { useLanguageUpdateAction } from "@/modules/resume/sdk/LanguageUpdateAction";
 import { useLanguageAwareDeleteAction } from "@/modules/resume/sdk/LanguageAwareDeleteAction";
 import { LanguageDto } from "@/modules/resume/sdk/LanguageDto";
-import { localizeSchema } from "@/components/entity-manager/VirtualEntityManager/localizeSchema";
+
 import {
   withTStringFields,
   TSTRING_RJSF_FIELDS,
@@ -26,8 +26,6 @@ const { schema: LANGUAGE_SCHEMA, uiSchema: LANGUAGE_UI_SCHEMA } =
   withTStringFields(BASE_SCHEMA, TSTRING_FIELDS);
 const beforeSetValues = stripNullOptionalValues(LANGUAGE_SCHEMA);
 
-// NOTE: `resume` (required) is a `one` relation selector, left unpatched
-// here - see WorkExperienceRoutes.tsx's identical note.
 export function useLanguageRoutes() {
   return VirtualEntityManager({
     slug: "language",

@@ -9,18 +9,17 @@ import (
 
 // The base class definition for projectDto
 type ProjectDto struct {
-	UniqueId     emigo.Nullable[string]       `json:"uniqueId" yaml:"uniqueId"`
-	Resume       emigo.OneNullable[ResumeDto] `json:"resume" yaml:"resume"`
-	Name         string                       `json:"name" yaml:"name"`
-	Role         complexes.TString            `json:"role" yaml:"role"`
-	Summary      complexes.TString            `json:"summary" yaml:"summary"`
-	StartDate    emigo.Nullable[string]       `json:"startDate" yaml:"startDate"`
-	EndDate      emigo.Nullable[string]       `json:"endDate" yaml:"endDate"`
-	IsOngoing    emigo.Nullable[bool]         `json:"isOngoing" yaml:"isOngoing"`
-	Url          emigo.Nullable[string]       `json:"url" yaml:"url"`
-	RepoUrl      emigo.Nullable[string]       `json:"repoUrl" yaml:"repoUrl"`
-	Technologies emigo.Nullable[[]string]     `json:"technologies" yaml:"technologies"`
-	Highlights   emigo.Nullable[[]string]     `json:"highlights" yaml:"highlights"`
+	UniqueId     emigo.Nullable[string]   `json:"uniqueId" yaml:"uniqueId"`
+	Name         string                   `json:"name" yaml:"name"`
+	Role         complexes.TString        `json:"role" yaml:"role"`
+	Summary      complexes.TString        `json:"summary" yaml:"summary"`
+	StartDate    complexes.XDate          `json:"startDate" yaml:"startDate"`
+	EndDate      complexes.XDate          `json:"endDate" yaml:"endDate"`
+	IsOngoing    emigo.Nullable[bool]     `json:"isOngoing" yaml:"isOngoing"`
+	Url          emigo.Nullable[string]   `json:"url" yaml:"url"`
+	RepoUrl      emigo.Nullable[string]   `json:"repoUrl" yaml:"repoUrl"`
+	Technologies emigo.Nullable[[]string] `json:"technologies" yaml:"technologies"`
+	Highlights   emigo.Nullable[[]string] `json:"highlights" yaml:"highlights"`
 }
 
 func (x *ProjectDto) Json() string {
@@ -37,10 +36,6 @@ func GetProjectDtoCliFlags(prefix string) []emigo.CliFlag {
 			Type: "string?",
 		},
 		{
-			Name: prefix + "resume",
-			Type: "one?",
-		},
-		{
 			Name: prefix + "name",
 			Type: "string",
 		},
@@ -54,11 +49,11 @@ func GetProjectDtoCliFlags(prefix string) []emigo.CliFlag {
 		},
 		{
 			Name: prefix + "start-date",
-			Type: "string?",
+			Type: "complex",
 		},
 		{
 			Name: prefix + "end-date",
-			Type: "string?",
+			Type: "complex",
 		},
 		{
 			Name: prefix + "is-ongoing",
@@ -87,9 +82,6 @@ func CastProjectDtoFromCli(c emigo.CliCastable) ProjectDto {
 	if c.IsSet("unique-id") {
 		emigo.ParseNullable(c.String("unique-id"), &data.UniqueId)
 	}
-	if c.IsSet("resume") {
-		data.Resume = emigo.CapturePossibleOneNullable(CastResumeDtoFromCli, "resume", c)
-	}
 	if c.IsSet("name") {
 		data.Name = c.String("name")
 	}
@@ -104,10 +96,14 @@ func CastProjectDtoFromCli(c emigo.CliCastable) ProjectDto {
 		}
 	}
 	if c.IsSet("start-date") {
-		emigo.ParseNullable(c.String("start-date"), &data.StartDate)
+		if u, ok := any(&data.StartDate).(encoding.TextUnmarshaler); ok {
+			u.UnmarshalText([]byte(c.String("start-date")))
+		}
 	}
 	if c.IsSet("end-date") {
-		emigo.ParseNullable(c.String("end-date"), &data.EndDate)
+		if u, ok := any(&data.EndDate).(encoding.TextUnmarshaler); ok {
+			u.UnmarshalText([]byte(c.String("end-date")))
+		}
 	}
 	if c.IsSet("is-ongoing") {
 		emigo.ParseNullable(c.String("is-ongoing"), &data.IsOngoing)

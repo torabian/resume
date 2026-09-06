@@ -1,37 +1,47 @@
 import { type RJSFSchema } from "@rjsf/utils";
-import { VirtualEntityManager } from "@/components/entity-manager/VirtualEntityManager";
+import { VirtualEntityManager, localizeSchema } from "@fireback/virtual-entity-manager";
 import { useWorkExperienceGetActionQuery } from "@/modules/resume/sdk/WorkExperienceGetAction";
 import { useWorkExperienceBrowseActionQuery } from "@/modules/resume/sdk/WorkExperienceBrowseAction";
 import { useWorkExperienceCreateAction } from "@/modules/resume/sdk/WorkExperienceCreateAction";
 import { useWorkExperienceUpdateAction } from "@/modules/resume/sdk/WorkExperienceUpdateAction";
 import { useWorkExperienceAwareDeleteAction } from "@/modules/resume/sdk/WorkExperienceAwareDeleteAction";
 import { WorkExperienceDto } from "@/modules/resume/sdk/WorkExperienceDto";
-import { localizeSchema } from "@/components/entity-manager/VirtualEntityManager/localizeSchema";
+
 import {
   withTStringFields,
+  withXDateFields,
   TSTRING_RJSF_FIELDS,
   stripNullOptionalValues,
 } from "./routeUtils";
 
-// jobTitle/location/summary are `complex(?): TString` - see Resume.emi.yml's
-// own top-of-file "Translatable fields" note.
-const TSTRING_FIELDS = ["jobTitle", "location", "summary"];
+// company/jobTitle/location are `complex(?): TString` - see Resume.emi.yml's
+// own top-of-file "Translatable fields" note. `company` used to be a
+// `one? target: CompanyEntity` relation (left unpatched here deliberately -
+// see the removed NOTE this comment used to carry) but is now a plain
+// TString field like the others, so it needs the same patch.
+const TSTRING_FIELDS = ["company", "jobTitle", "location"];
+
+// startDate (required) / endDate (optional) are `complex(?): XDate` - see
+// Resume.emi.yml's own top-of-file "Dates" note.
+const XDATE_FIELDS = ["startDate", "endDate"];
 
 const BASE_SCHEMA = localizeSchema(
   WorkExperienceDto.JsonSchema as RJSFSchema,
   WorkExperienceDto.DefaultTranslations,
 );
-const { schema: WORK_EXPERIENCE_SCHEMA, uiSchema: WORK_EXPERIENCE_UI_SCHEMA } =
+const { schema: TSTRING_PATCHED_SCHEMA, uiSchema: WORK_EXPERIENCE_UI_SCHEMA } =
   withTStringFields(BASE_SCHEMA, TSTRING_FIELDS);
-const beforeSetValues = stripNullOptionalValues(WORK_EXPERIENCE_SCHEMA);
+const { schema: WORK_EXPERIENCE_SCHEMA } = withXDateFields(
+  TSTRING_PATCHED_SCHEMA,
+  XDATE_FIELDS,
+);
+// Only endDate is optional (startDate is required) - see
+// stripNullOptionalValues's own doc comment on why only optional XDate
+// fields need their "" normalized away.
+const beforeSetValues = stripNullOptionalValues(WORK_EXPERIENCE_SCHEMA, [
+  "endDate",
+]);
 
-// NOTE: `resume` (required) and `company` (optional) are `one`/`one?`
-// relation selectors, left unpatched here - same known gap as
-// ../../../nima/ui/src/modules/musicalwork/MusicalWorkRoutes.tsx's own
-// `musicalContext: one?` field (see routeUtils.ts's withTStringFields doc
-// comment): VirtualEntityManager has no relation-picker widget yet, so
-// create/update through this generic form can't set them today. Get/
-// Browse/single-view/delete all work fully regardless.
 export function useWorkExperienceRoutes() {
   return VirtualEntityManager({
     slug: "work-experience",

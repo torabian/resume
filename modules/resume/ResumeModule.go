@@ -40,6 +40,7 @@ func ResumeModuleSetup(cfg *ResumeModuleConfig) *application.ModuleProvider {
 				AutoMigrationEntities: []interface{}{
 					&resumedefs.ResumeEntity{},
 					&resumedefs.CompanyEntity{},
+					&resumedefs.TargetPositionEntity{},
 					&resumedefs.WorkExperienceEntity{},
 					&resumedefs.EducationEntity{},
 					&resumedefs.SkillEntity{},
@@ -65,6 +66,13 @@ func ResumeModuleSetup(cfg *ResumeModuleConfig) *application.ModuleProvider {
 				resumedefs.CompanyBrowseActionGin(g, CompanyBrowseAction)
 				resumedefs.CompanyAwareDeletePreviewActionGin(g, CompanyAwareDeletePreviewAction)
 				resumedefs.CompanyAwareDeleteActionGin(g, CompanyAwareDeleteAction)
+
+				resumedefs.TargetPositionCreateActionGin(g, TargetPositionCreateAction)
+				resumedefs.TargetPositionUpdateActionGin(g, TargetPositionUpdateAction)
+				resumedefs.TargetPositionGetActionGin(g, TargetPositionGetAction)
+				resumedefs.TargetPositionBrowseActionGin(g, TargetPositionBrowseAction)
+				resumedefs.TargetPositionAwareDeletePreviewActionGin(g, TargetPositionAwareDeletePreviewAction)
+				resumedefs.TargetPositionAwareDeleteActionGin(g, TargetPositionAwareDeleteAction)
 
 				resumedefs.WorkExperienceCreateActionGin(g, WorkExperienceCreateAction)
 				resumedefs.WorkExperienceUpdateActionGin(g, WorkExperienceUpdateAction)

@@ -1,12 +1,12 @@
 import { type RJSFSchema } from "@rjsf/utils";
-import { VirtualEntityManager } from "@/components/entity-manager/VirtualEntityManager";
+import { VirtualEntityManager, localizeSchema } from "@fireback/virtual-entity-manager";
 import { useCertificationGetActionQuery } from "@/modules/resume/sdk/CertificationGetAction";
 import { useCertificationBrowseActionQuery } from "@/modules/resume/sdk/CertificationBrowseAction";
 import { useCertificationCreateAction } from "@/modules/resume/sdk/CertificationCreateAction";
 import { useCertificationUpdateAction } from "@/modules/resume/sdk/CertificationUpdateAction";
 import { useCertificationAwareDeleteAction } from "@/modules/resume/sdk/CertificationAwareDeleteAction";
 import { CertificationDto } from "@/modules/resume/sdk/CertificationDto";
-import { localizeSchema } from "@/components/entity-manager/VirtualEntityManager/localizeSchema";
+
 import {
   withTStringFields,
   TSTRING_RJSF_FIELDS,
@@ -27,8 +27,6 @@ const { schema: CERTIFICATION_SCHEMA, uiSchema: CERTIFICATION_UI_SCHEMA } =
   withTStringFields(BASE_SCHEMA, TSTRING_FIELDS);
 const beforeSetValues = stripNullOptionalValues(CERTIFICATION_SCHEMA);
 
-// NOTE: `resume` (required) is a `one` relation selector, left unpatched
-// here - see WorkExperienceRoutes.tsx's identical note.
 export function useCertificationRoutes() {
   return VirtualEntityManager({
     slug: "certification",

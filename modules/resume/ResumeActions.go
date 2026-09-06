@@ -2,35 +2,38 @@ package resume
 
 // ResumeActions.go implements every action Resume.emi.yml's entities
 // generated (Create/Update/Get/Browse/AwareDeletePreview/AwareDelete for
-// Resume, Company, WorkExperience, Education, Skill, Project,
-// Certification and Language) - the pieces ResumeModule.go's own doc
-// comment said weren't wired up yet.
+// Resume, Company, TargetPosition, WorkExperience, Education, Skill,
+// Project, Certification and Language) - the pieces ResumeModule.go's own
+// doc comment said weren't wired up yet.
 //
 // Every action leans on the generated defs/*.go as much as possible:
-//   - Update always delegates straight to resumedefs.{Entity}EntityActions.Update -
-//     it already resolves one/one? relation selectors and merges every
-//     Nullable field itself (see WorkExperienceEntityUpdateFn), so there is
-//     nothing left for this file to do beyond the not-found check.
+//   - Create/Update delegate straight to resumedefs.{Entity}EntityActions.Create/
+//     Update - Update already merges every Nullable field itself (see
+//     WorkExperienceEntityUpdateFn), so there's nothing left for this file
+//     to do beyond the not-found check.
 //   - Get/Browse/AwareDeletePreview/AwareDelete call the matching
 //     resumedefs.{Entity}EntityActions.* function directly.
-//   - Only Create needs hand-written relation resolution: {Entity}EntityCreateFn
-//     takes an already-built *Entity (see WorkExperienceEntityCreateFn), so a
-//     one/one? relation's caller-supplied selector (resolveResumeId/
-//     resolveCompanyId below, using emigorm.ReconcileOne - same approach as
-//     ../nima/modules/score/CreateScoreImplementation.go's own
-//     scoreMusicalWorkSelectorId + ReconcileOne("select", ...) call) has to be
-//     resolved to a plain ResumeId/CompanyId column before Create runs.
+//
+// None of Resume.emi.yml's entities carry a `one`/`one?` relation field
+// today (see its own doc comment: every section used to link back to its
+// owning Resume via `resume: one target: ResumeEntity`, but that's been
+// removed from all of them - they're independent, unscoped rows now), so
+// there's no relation-selector resolution left to do here either -
+// resumeSelectorId/resolveResumeId and their WorkExperience-only
+// companySelectorId/resolveCompanyId equivalents (both used the same
+// emigorm.ReconcileOne approach as
+// ../nima/modules/score/CreateScoreImplementation.go's own
+// scoreMusicalWorkSelectorId + ReconcileOne("select", ...) call) were
+// removed along with the fields they resolved.
 //
 // None of this wires workspace/user scoping or permissions (see
 // ResumeModule.go's doc comment for why) - fireback.GetDbRef() is used
 // unscoped throughout.
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/torabian/emi/emigo"
-	"github.com/torabian/emi/emigorm"
 	"github.com/torabian/fireback/modules/fireback"
 	resumedefs "github.com/torabian/resume/modules/resume/defs"
 	"gorm.io/gorm"
@@ -56,61 +59,6 @@ func gResponseQuery[T any](items []T, meta *emigo.QueryResultMeta, startIndex, i
 		res.Data.ItemsPerPage = int64(itemsPerPage)
 	}
 	return res
-}
-
-// resumeSelectorId extracts the target uniqueId out of a `resume: one`
-// field's OneNullable payload - same shape/reasoning as
-// ../nima/modules/score/ScoreHelpers.go's scoreMusicalWorkSelectorId. Every
-// section entity's Dto embeds this as `Resume emigo.OneNullable[ResumeDto]`,
-// so one helper covers all of them.
-func resumeSelectorId(one emigo.OneNullable[resumedefs.ResumeDto]) string {
-	if !one.IsSet() {
-		return ""
-	}
-	if one.Operation == "select" {
-		if s, ok := one.Selector.(string); ok {
-			return s
-		}
-		return ""
-	}
-	return one.Item.UniqueId.OrDefault("")
-}
-
-// companySelectorId is the WorkExperience-only equivalent of
-// resumeSelectorId, for its `company: one?` field.
-func companySelectorId(one emigo.OneNullable[resumedefs.CompanyDto]) string {
-	if !one.IsSet() {
-		return ""
-	}
-	if one.Operation == "select" {
-		if s, ok := one.Selector.(string); ok {
-			return s
-		}
-		return ""
-	}
-	return one.Item.UniqueId.OrDefault("")
-}
-
-// resolveResumeId resolves a required `resume: one` selector to the
-// resume's real (int64) id via emigorm.ReconcileOne, erroring if the
-// caller didn't supply one at all.
-func resolveResumeId(tx *gorm.DB, one emigo.OneNullable[resumedefs.ResumeDto]) (int64, error) {
-	selectorId := resumeSelectorId(one)
-	if selectorId == "" {
-		return 0, fmt.Errorf(`"resume" is required: select an existing resume by its uniqueId`)
-	}
-	return emigorm.ReconcileOne[resumedefs.ResumeEntity](tx, "select", selectorId, nil)
-}
-
-// resolveCompanyId is the optional counterpart to resolveResumeId, for
-// WorkExperience's `company: one?` field - an unset selector resolves to 0
-// (no company), not an error.
-func resolveCompanyId(tx *gorm.DB, one emigo.OneNullable[resumedefs.CompanyDto]) (int64, error) {
-	selectorId := companySelectorId(one)
-	if selectorId == "" {
-		return 0, nil
-	}
-	return emigorm.ReconcileOne[resumedefs.CompanyEntity](tx, "select", selectorId, nil)
 }
 
 // ---------------------------------------------------------------------------
@@ -147,31 +95,35 @@ func companyDtoFromEntity(e *resumedefs.CompanyEntity) resumedefs.CompanyDto {
 	}
 }
 
-// workExperienceDtoFromEntity only populates the Resume/Company relation
-// fields when the caller preloaded them (see WorkExperienceGetAction/
-// WorkExperienceBrowseAction) - e.Resume is nil and e.Company is a
-// zero-value CompanyEntity (Id == 0) otherwise, matching an unset
-// OneNullable in the response.
+// targetPositionDtoFromEntity is Company's standalone-entity shape reused
+// as-is: TargetPosition has no relations either (see
+// Resume.emi.yml's own doc comment on it - a reference point a resume's
+// content is written towards, not itself owned by one).
+func targetPositionDtoFromEntity(e *resumedefs.TargetPositionEntity) resumedefs.TargetPositionDto {
+	return resumedefs.TargetPositionDto{
+		UniqueId: emigo.NullableOf(e.UniqueId),
+		Name:     e.Name,
+	}
+}
+
+// workExperienceDtoFromEntity is a plain field-for-field copy - WorkExperience
+// no longer carries a resume/company relation (see Resume.emi.yml: `company`
+// is now a plain `complex: TString` field, and the `resume: one` link that
+// used to scope Browse by resumeId is gone), so unlike
+// resumeDtoFromEntity/companyDtoFromEntity's siblings there's no OneNullable
+// relation left to populate here.
 func workExperienceDtoFromEntity(e *resumedefs.WorkExperienceEntity) resumedefs.WorkExperienceDto {
-	dto := resumedefs.WorkExperienceDto{
+	return resumedefs.WorkExperienceDto{
 		UniqueId:       emigo.NullableOf(e.UniqueId),
+		Company:        e.Company,
 		JobTitle:       e.JobTitle,
 		EmploymentType: e.EmploymentType,
 		Location:       e.Location,
 		Remote:         e.Remote,
 		StartDate:      e.StartDate,
 		EndDate:        e.EndDate,
-		IsCurrent:      e.IsCurrent,
-		Summary:        e.Summary,
 		Achievements:   e.Achievements,
 	}
-	if e.Resume != nil {
-		dto.Resume = emigo.NewOneNullable(resumeDtoFromEntity(e.Resume))
-	}
-	if e.Company.Id != 0 {
-		dto.Company = emigo.NewOneNullable(companyDtoFromEntity(&e.Company))
-	}
-	return dto
 }
 
 func educationDtoFromEntity(e *resumedefs.EducationEntity) resumedefs.EducationDto {
@@ -187,9 +139,6 @@ func educationDtoFromEntity(e *resumedefs.EducationEntity) resumedefs.EducationD
 		Grade:        e.Grade,
 		Description:  e.Description,
 	}
-	if e.Resume != nil {
-		dto.Resume = emigo.NewOneNullable(resumeDtoFromEntity(e.Resume))
-	}
 	return dto
 }
 
@@ -201,9 +150,6 @@ func skillDtoFromEntity(e *resumedefs.SkillEntity) resumedefs.SkillDto {
 		Level:             e.Level,
 		YearsOfExperience: e.YearsOfExperience,
 		Description:       e.Description,
-	}
-	if e.Resume != nil {
-		dto.Resume = emigo.NewOneNullable(resumeDtoFromEntity(e.Resume))
 	}
 	return dto
 }
@@ -222,9 +168,7 @@ func projectDtoFromEntity(e *resumedefs.ProjectEntity) resumedefs.ProjectDto {
 		Technologies: e.Technologies,
 		Highlights:   e.Highlights,
 	}
-	if e.Resume != nil {
-		dto.Resume = emigo.NewOneNullable(resumeDtoFromEntity(e.Resume))
-	}
+
 	return dto
 }
 
@@ -238,9 +182,6 @@ func certificationDtoFromEntity(e *resumedefs.CertificationEntity) resumedefs.Ce
 		CredentialId:        e.CredentialId,
 		CredentialUrl:       e.CredentialUrl,
 	}
-	if e.Resume != nil {
-		dto.Resume = emigo.NewOneNullable(resumeDtoFromEntity(e.Resume))
-	}
 	return dto
 }
 
@@ -249,9 +190,6 @@ func languageDtoFromEntity(e *resumedefs.LanguageEntity) resumedefs.LanguageDto 
 		UniqueId:    emigo.NullableOf(e.UniqueId),
 		Name:        e.Name,
 		Proficiency: e.Proficiency,
-	}
-	if e.Resume != nil {
-		dto.Resume = emigo.NewOneNullable(resumeDtoFromEntity(e.Resume))
 	}
 	return dto
 }
@@ -431,30 +369,97 @@ func CompanyAwareDeleteAction(c resumedefs.CompanyAwareDeleteActionRequest) (*re
 }
 
 // ===========================================================================
+// TargetPosition
+// ===========================================================================
+
+func TargetPositionCreateAction(c resumedefs.TargetPositionCreateActionRequest) (*resumedefs.TargetPositionCreateActionResponse, error) {
+	created, err := resumedefs.TargetPositionEntityActions.Create(fireback.GetDbRef(), &resumedefs.TargetPositionEntity{
+		Name: c.Body.Name,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &resumedefs.TargetPositionCreateActionResponse{
+		StatusCode: http.StatusCreated,
+		Payload:    fireback.GResponseSingleItem(targetPositionDtoFromEntity(created)),
+	}, nil
+}
+
+func TargetPositionUpdateAction(c resumedefs.TargetPositionUpdateActionRequest) (*resumedefs.TargetPositionUpdateActionResponse, error) {
+	updated, err := resumedefs.TargetPositionEntityActions.Update(fireback.GetDbRef(), c.Params.UniqueId, c.Body)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &resumedefs.TargetPositionUpdateActionResponse{StatusCode: http.StatusNotFound, Payload: map[string]string{"error": "target position not found"}}, nil
+		}
+		return nil, err
+	}
+	return &resumedefs.TargetPositionUpdateActionResponse{Payload: fireback.GResponseSingleItem(targetPositionDtoFromEntity(updated))}, nil
+}
+
+func TargetPositionGetAction(c resumedefs.TargetPositionGetActionRequest) (*resumedefs.TargetPositionGetActionResponse, error) {
+	entity, err := resumedefs.TargetPositionEntityActions.Get(fireback.GetDbRef(), c.Params.UniqueId)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &resumedefs.TargetPositionGetActionResponse{StatusCode: http.StatusNotFound, Payload: map[string]string{"error": "target position not found"}}, nil
+		}
+		return nil, err
+	}
+	return &resumedefs.TargetPositionGetActionResponse{Payload: fireback.GResponseSingleItem(targetPositionDtoFromEntity(entity))}, nil
+}
+
+func TargetPositionBrowseAction(c resumedefs.TargetPositionBrowseActionRequest) (*resumedefs.TargetPositionBrowseActionResponse, error) {
+	qs := resumedefs.TargetPositionBrowseActionQueryFromString(c.QueryParams.Encode())
+	items, meta, err := resumedefs.TargetPositionEntityActions.Browse(fireback.GetDbRef(), qs, "")
+	if err != nil {
+		return nil, err
+	}
+	dtos := make([]resumedefs.TargetPositionDto, len(items))
+	for i, item := range items {
+		dtos[i] = targetPositionDtoFromEntity(item)
+	}
+	return &resumedefs.TargetPositionBrowseActionResponse{
+		Payload: gResponseQuery(dtos, meta, qs.StartIndex, qs.ItemsPerPage),
+	}, nil
+}
+
+func TargetPositionAwareDeletePreviewAction(c resumedefs.TargetPositionAwareDeletePreviewActionRequest) (*resumedefs.TargetPositionAwareDeletePreviewActionResponse, error) {
+	qs := resumedefs.TargetPositionAwareDeletePreviewActionQueryFromString(c.QueryParams.Encode())
+	preview, err := resumedefs.TargetPositionEntityActions.AwareDeletePreview(fireback.GetDbRef(), qs.UniqueIds)
+	if err != nil {
+		return nil, err
+	}
+	affected := make([]resumedefs.TargetPositionAwareDeletePreviewActionResAffected, len(preview.Affected))
+	for i, a := range preview.Affected {
+		affected[i] = resumedefs.TargetPositionAwareDeletePreviewActionResAffected{Relation: a.Relation, Count: a.Count}
+	}
+	return &resumedefs.TargetPositionAwareDeletePreviewActionResponse{
+		Payload: fireback.GResponseSingleItem(resumedefs.TargetPositionAwareDeletePreviewActionRes{
+			Message:  preview.Message,
+			Affected: emigo.ArrayReplace(affected),
+		}),
+	}, nil
+}
+
+func TargetPositionAwareDeleteAction(c resumedefs.TargetPositionAwareDeleteActionRequest) (*resumedefs.TargetPositionAwareDeleteActionResponse, error) {
+	if err := resumedefs.TargetPositionEntityActions.AwareDelete(fireback.GetDbRef(), c.Body.UniqueIds); err != nil {
+		return nil, err
+	}
+	return &resumedefs.TargetPositionAwareDeleteActionResponse{Payload: map[string]any{"deleted": c.Body.UniqueIds}}, nil
+}
+
+// ===========================================================================
 // WorkExperience
 // ===========================================================================
 
 func WorkExperienceCreateAction(c resumedefs.WorkExperienceCreateActionRequest) (*resumedefs.WorkExperienceCreateActionResponse, error) {
-	tx := fireback.GetDbRef()
-	resumeId, err := resolveResumeId(tx, c.Body.Resume)
-	if err != nil {
-		return nil, err
-	}
-	companyId, err := resolveCompanyId(tx, c.Body.Company)
-	if err != nil {
-		return nil, err
-	}
-	created, err := resumedefs.WorkExperienceEntityActions.Create(tx, &resumedefs.WorkExperienceEntity{
-		ResumeId:       resumeId,
-		CompanyId:      companyId,
+	created, err := resumedefs.WorkExperienceEntityActions.Create(fireback.GetDbRef(), &resumedefs.WorkExperienceEntity{
+		Company:        c.Body.Company,
 		JobTitle:       c.Body.JobTitle,
 		EmploymentType: c.Body.EmploymentType,
 		Location:       c.Body.Location,
 		Remote:         c.Body.Remote,
 		StartDate:      c.Body.StartDate,
 		EndDate:        c.Body.EndDate,
-		IsCurrent:      c.Body.IsCurrent,
-		Summary:        c.Body.Summary,
 		Achievements:   c.Body.Achievements,
 	})
 	if err != nil {
@@ -478,8 +483,7 @@ func WorkExperienceUpdateAction(c resumedefs.WorkExperienceUpdateActionRequest) 
 }
 
 func WorkExperienceGetAction(c resumedefs.WorkExperienceGetActionRequest) (*resumedefs.WorkExperienceGetActionResponse, error) {
-	tx := fireback.GetDbRef().Preload("Resume").Preload("Company")
-	entity, err := resumedefs.WorkExperienceEntityActions.Get(tx, c.Params.UniqueId)
+	entity, err := resumedefs.WorkExperienceEntityActions.Get(fireback.GetDbRef(), c.Params.UniqueId)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &resumedefs.WorkExperienceGetActionResponse{StatusCode: http.StatusNotFound, Payload: map[string]string{"error": "work experience not found"}}, nil
@@ -491,8 +495,7 @@ func WorkExperienceGetAction(c resumedefs.WorkExperienceGetActionRequest) (*resu
 
 func WorkExperienceBrowseAction(c resumedefs.WorkExperienceBrowseActionRequest) (*resumedefs.WorkExperienceBrowseActionResponse, error) {
 	qs := resumedefs.WorkExperienceBrowseActionQueryFromString(c.QueryParams.Encode())
-	tx := fireback.GetDbRef().Preload("Resume").Preload("Company")
-	items, meta, err := resumedefs.WorkExperienceEntityActions.Browse(tx, qs, "")
+	items, meta, err := resumedefs.WorkExperienceEntityActions.Browse(fireback.GetDbRef(), qs, "")
 	if err != nil {
 		return nil, err
 	}
@@ -536,12 +539,8 @@ func WorkExperienceAwareDeleteAction(c resumedefs.WorkExperienceAwareDeleteActio
 
 func EducationCreateAction(c resumedefs.EducationCreateActionRequest) (*resumedefs.EducationCreateActionResponse, error) {
 	tx := fireback.GetDbRef()
-	resumeId, err := resolveResumeId(tx, c.Body.Resume)
-	if err != nil {
-		return nil, err
-	}
+
 	created, err := resumedefs.EducationEntityActions.Create(tx, &resumedefs.EducationEntity{
-		ResumeId:     resumeId,
 		Institution:  c.Body.Institution,
 		Degree:       c.Body.Degree,
 		FieldOfStudy: c.Body.FieldOfStudy,
@@ -573,8 +572,7 @@ func EducationUpdateAction(c resumedefs.EducationUpdateActionRequest) (*resumede
 }
 
 func EducationGetAction(c resumedefs.EducationGetActionRequest) (*resumedefs.EducationGetActionResponse, error) {
-	tx := fireback.GetDbRef().Preload("Resume")
-	entity, err := resumedefs.EducationEntityActions.Get(tx, c.Params.UniqueId)
+	entity, err := resumedefs.EducationEntityActions.Get(fireback.GetDbRef(), c.Params.UniqueId)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &resumedefs.EducationGetActionResponse{StatusCode: http.StatusNotFound, Payload: map[string]string{"error": "education not found"}}, nil
@@ -586,8 +584,7 @@ func EducationGetAction(c resumedefs.EducationGetActionRequest) (*resumedefs.Edu
 
 func EducationBrowseAction(c resumedefs.EducationBrowseActionRequest) (*resumedefs.EducationBrowseActionResponse, error) {
 	qs := resumedefs.EducationBrowseActionQueryFromString(c.QueryParams.Encode())
-	tx := fireback.GetDbRef().Preload("Resume")
-	items, meta, err := resumedefs.EducationEntityActions.Browse(tx, qs, "")
+	items, meta, err := resumedefs.EducationEntityActions.Browse(fireback.GetDbRef(), qs, "")
 	if err != nil {
 		return nil, err
 	}
@@ -631,12 +628,8 @@ func EducationAwareDeleteAction(c resumedefs.EducationAwareDeleteActionRequest) 
 
 func SkillCreateAction(c resumedefs.SkillCreateActionRequest) (*resumedefs.SkillCreateActionResponse, error) {
 	tx := fireback.GetDbRef()
-	resumeId, err := resolveResumeId(tx, c.Body.Resume)
-	if err != nil {
-		return nil, err
-	}
+
 	created, err := resumedefs.SkillEntityActions.Create(tx, &resumedefs.SkillEntity{
-		ResumeId:          resumeId,
 		Name:              c.Body.Name,
 		Category:          c.Body.Category,
 		Level:             c.Body.Level,
@@ -664,8 +657,7 @@ func SkillUpdateAction(c resumedefs.SkillUpdateActionRequest) (*resumedefs.Skill
 }
 
 func SkillGetAction(c resumedefs.SkillGetActionRequest) (*resumedefs.SkillGetActionResponse, error) {
-	tx := fireback.GetDbRef().Preload("Resume")
-	entity, err := resumedefs.SkillEntityActions.Get(tx, c.Params.UniqueId)
+	entity, err := resumedefs.SkillEntityActions.Get(fireback.GetDbRef(), c.Params.UniqueId)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &resumedefs.SkillGetActionResponse{StatusCode: http.StatusNotFound, Payload: map[string]string{"error": "skill not found"}}, nil
@@ -677,8 +669,7 @@ func SkillGetAction(c resumedefs.SkillGetActionRequest) (*resumedefs.SkillGetAct
 
 func SkillBrowseAction(c resumedefs.SkillBrowseActionRequest) (*resumedefs.SkillBrowseActionResponse, error) {
 	qs := resumedefs.SkillBrowseActionQueryFromString(c.QueryParams.Encode())
-	tx := fireback.GetDbRef().Preload("Resume")
-	items, meta, err := resumedefs.SkillEntityActions.Browse(tx, qs, "")
+	items, meta, err := resumedefs.SkillEntityActions.Browse(fireback.GetDbRef(), qs, "")
 	if err != nil {
 		return nil, err
 	}
@@ -722,12 +713,8 @@ func SkillAwareDeleteAction(c resumedefs.SkillAwareDeleteActionRequest) (*resume
 
 func ProjectCreateAction(c resumedefs.ProjectCreateActionRequest) (*resumedefs.ProjectCreateActionResponse, error) {
 	tx := fireback.GetDbRef()
-	resumeId, err := resolveResumeId(tx, c.Body.Resume)
-	if err != nil {
-		return nil, err
-	}
+
 	created, err := resumedefs.ProjectEntityActions.Create(tx, &resumedefs.ProjectEntity{
-		ResumeId:     resumeId,
 		Name:         c.Body.Name,
 		Role:         c.Body.Role,
 		Summary:      c.Body.Summary,
@@ -760,8 +747,7 @@ func ProjectUpdateAction(c resumedefs.ProjectUpdateActionRequest) (*resumedefs.P
 }
 
 func ProjectGetAction(c resumedefs.ProjectGetActionRequest) (*resumedefs.ProjectGetActionResponse, error) {
-	tx := fireback.GetDbRef().Preload("Resume")
-	entity, err := resumedefs.ProjectEntityActions.Get(tx, c.Params.UniqueId)
+	entity, err := resumedefs.ProjectEntityActions.Get(fireback.GetDbRef(), c.Params.UniqueId)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &resumedefs.ProjectGetActionResponse{StatusCode: http.StatusNotFound, Payload: map[string]string{"error": "project not found"}}, nil
@@ -773,8 +759,7 @@ func ProjectGetAction(c resumedefs.ProjectGetActionRequest) (*resumedefs.Project
 
 func ProjectBrowseAction(c resumedefs.ProjectBrowseActionRequest) (*resumedefs.ProjectBrowseActionResponse, error) {
 	qs := resumedefs.ProjectBrowseActionQueryFromString(c.QueryParams.Encode())
-	tx := fireback.GetDbRef().Preload("Resume")
-	items, meta, err := resumedefs.ProjectEntityActions.Browse(tx, qs, "")
+	items, meta, err := resumedefs.ProjectEntityActions.Browse(fireback.GetDbRef(), qs, "")
 	if err != nil {
 		return nil, err
 	}
@@ -818,12 +803,8 @@ func ProjectAwareDeleteAction(c resumedefs.ProjectAwareDeleteActionRequest) (*re
 
 func CertificationCreateAction(c resumedefs.CertificationCreateActionRequest) (*resumedefs.CertificationCreateActionResponse, error) {
 	tx := fireback.GetDbRef()
-	resumeId, err := resolveResumeId(tx, c.Body.Resume)
-	if err != nil {
-		return nil, err
-	}
+
 	created, err := resumedefs.CertificationEntityActions.Create(tx, &resumedefs.CertificationEntity{
-		ResumeId:            resumeId,
 		Name:                c.Body.Name,
 		IssuingOrganization: c.Body.IssuingOrganization,
 		IssueDate:           c.Body.IssueDate,
@@ -852,8 +833,7 @@ func CertificationUpdateAction(c resumedefs.CertificationUpdateActionRequest) (*
 }
 
 func CertificationGetAction(c resumedefs.CertificationGetActionRequest) (*resumedefs.CertificationGetActionResponse, error) {
-	tx := fireback.GetDbRef().Preload("Resume")
-	entity, err := resumedefs.CertificationEntityActions.Get(tx, c.Params.UniqueId)
+	entity, err := resumedefs.CertificationEntityActions.Get(fireback.GetDbRef(), c.Params.UniqueId)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &resumedefs.CertificationGetActionResponse{StatusCode: http.StatusNotFound, Payload: map[string]string{"error": "certification not found"}}, nil
@@ -865,8 +845,7 @@ func CertificationGetAction(c resumedefs.CertificationGetActionRequest) (*resume
 
 func CertificationBrowseAction(c resumedefs.CertificationBrowseActionRequest) (*resumedefs.CertificationBrowseActionResponse, error) {
 	qs := resumedefs.CertificationBrowseActionQueryFromString(c.QueryParams.Encode())
-	tx := fireback.GetDbRef().Preload("Resume")
-	items, meta, err := resumedefs.CertificationEntityActions.Browse(tx, qs, "")
+	items, meta, err := resumedefs.CertificationEntityActions.Browse(fireback.GetDbRef(), qs, "")
 	if err != nil {
 		return nil, err
 	}
@@ -910,12 +889,8 @@ func CertificationAwareDeleteAction(c resumedefs.CertificationAwareDeleteActionR
 
 func LanguageCreateAction(c resumedefs.LanguageCreateActionRequest) (*resumedefs.LanguageCreateActionResponse, error) {
 	tx := fireback.GetDbRef()
-	resumeId, err := resolveResumeId(tx, c.Body.Resume)
-	if err != nil {
-		return nil, err
-	}
+
 	created, err := resumedefs.LanguageEntityActions.Create(tx, &resumedefs.LanguageEntity{
-		ResumeId:    resumeId,
 		Name:        c.Body.Name,
 		Proficiency: c.Body.Proficiency,
 	})
@@ -940,8 +915,7 @@ func LanguageUpdateAction(c resumedefs.LanguageUpdateActionRequest) (*resumedefs
 }
 
 func LanguageGetAction(c resumedefs.LanguageGetActionRequest) (*resumedefs.LanguageGetActionResponse, error) {
-	tx := fireback.GetDbRef().Preload("Resume")
-	entity, err := resumedefs.LanguageEntityActions.Get(tx, c.Params.UniqueId)
+	entity, err := resumedefs.LanguageEntityActions.Get(fireback.GetDbRef(), c.Params.UniqueId)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &resumedefs.LanguageGetActionResponse{StatusCode: http.StatusNotFound, Payload: map[string]string{"error": "language not found"}}, nil
@@ -953,8 +927,7 @@ func LanguageGetAction(c resumedefs.LanguageGetActionRequest) (*resumedefs.Langu
 
 func LanguageBrowseAction(c resumedefs.LanguageBrowseActionRequest) (*resumedefs.LanguageBrowseActionResponse, error) {
 	qs := resumedefs.LanguageBrowseActionQueryFromString(c.QueryParams.Encode())
-	tx := fireback.GetDbRef().Preload("Resume")
-	items, meta, err := resumedefs.LanguageEntityActions.Browse(tx, qs, "")
+	items, meta, err := resumedefs.LanguageEntityActions.Browse(fireback.GetDbRef(), qs, "")
 	if err != nil {
 		return nil, err
 	}
