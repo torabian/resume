@@ -23,6 +23,26 @@ package main
 // require here - every entry is visible to anyone who can see the sidebar
 // at all.
 //
+// ActiveMatcher is a regex (compiled client-side via `new RegExp(...)` and
+// tested unanchored against the current route's plain pathname - see
+// ui/fireback-packages/ui-core/components/layouts/Sidebar.tsx's
+// dataMenuToMenu and MenuParticle.tsx's `item.activeMatcher.test(data.asPath)`)
+// that decides whether a sidebar entry highlights as active. Each entity has
+// 4 routes sharing one *singular* slug plus one *plural* one (see
+// createEntityNavigation.ts): `/<plural>` (browse), `/<slug>/new` (create),
+// `/<slug>/edit/:id` (edit), `/<slug>/:id` (single) - so matching only the
+// plural form (this file's own original value, e.g. "work-experiences")
+// highlighted the browse screen but never edit/create/single, since those
+// paths use the singular slug instead. `/<slug>s?(/|$)` matches all 4 at
+// once for every entity whose plural is just "+s" (every one of these
+// except company): it optionally consumes one trailing "s" (covering the
+// bare browse path) and then requires either "/" (a nested id/verb segment)
+// or end-of-string, so it doesn't also match an unrelated route that merely
+// starts with the same slug (e.g. "/skills-report"). `company`/`companies`
+// is irregular ("company" isn't even a prefix of "companies"), so it gets
+// its own `/compan(y|ies)(/|$)` instead.
+
+//
 // This file lives in cmd/ (package main) rather than under modules/resume
 // the way musicalwork's own *Menu.go files do, since modules/resume has no
 // dependency on interfacetoolsdefs/abac today (see ResumeModule.go) and
@@ -53,7 +73,7 @@ func resumeMenus() []*interfacetoolsdefs.AppMenuEntity {
 			}),
 			Href:          "/profiles",
 			Icon:          "/common/entity-default.svg",
-			ActiveMatcher: "profiles",
+			ActiveMatcher: "/profiles?(/|$)",
 			ParentId:      emigo.NullableOf(group.UniqueId),
 		},
 		{
@@ -63,7 +83,7 @@ func resumeMenus() []*interfacetoolsdefs.AppMenuEntity {
 			}),
 			Href:          "/companies",
 			Icon:          "/common/entity-default.svg",
-			ActiveMatcher: "companies",
+			ActiveMatcher: "/compan(y|ies)(/|$)",
 			ParentId:      emigo.NullableOf(group.UniqueId),
 		},
 		{
@@ -73,7 +93,7 @@ func resumeMenus() []*interfacetoolsdefs.AppMenuEntity {
 			}),
 			Href:          "/target-positions",
 			Icon:          "/common/entity-default.svg",
-			ActiveMatcher: "target-positions",
+			ActiveMatcher: "/target-positions?(/|$)",
 			ParentId:      emigo.NullableOf(group.UniqueId),
 		},
 		{
@@ -83,7 +103,7 @@ func resumeMenus() []*interfacetoolsdefs.AppMenuEntity {
 			}),
 			Href:          "/work-experiences",
 			Icon:          "/common/entity-default.svg",
-			ActiveMatcher: "work-experiences",
+			ActiveMatcher: "/work-experiences?(/|$)",
 			ParentId:      emigo.NullableOf(group.UniqueId),
 		},
 		{
@@ -93,7 +113,7 @@ func resumeMenus() []*interfacetoolsdefs.AppMenuEntity {
 			}),
 			Href:          "/educations",
 			Icon:          "/common/entity-default.svg",
-			ActiveMatcher: "educations",
+			ActiveMatcher: "/educations?(/|$)",
 			ParentId:      emigo.NullableOf(group.UniqueId),
 		},
 		{
@@ -103,7 +123,7 @@ func resumeMenus() []*interfacetoolsdefs.AppMenuEntity {
 			}),
 			Href:          "/skills",
 			Icon:          "/common/entity-default.svg",
-			ActiveMatcher: "skills",
+			ActiveMatcher: "/skills?(/|$)",
 			ParentId:      emigo.NullableOf(group.UniqueId),
 		},
 		{
@@ -113,7 +133,7 @@ func resumeMenus() []*interfacetoolsdefs.AppMenuEntity {
 			}),
 			Href:          "/projects",
 			Icon:          "/common/entity-default.svg",
-			ActiveMatcher: "projects",
+			ActiveMatcher: "/projects?(/|$)",
 			ParentId:      emigo.NullableOf(group.UniqueId),
 		},
 		{
@@ -123,7 +143,7 @@ func resumeMenus() []*interfacetoolsdefs.AppMenuEntity {
 			}),
 			Href:          "/certifications",
 			Icon:          "/common/entity-default.svg",
-			ActiveMatcher: "certifications",
+			ActiveMatcher: "/certifications?(/|$)",
 			ParentId:      emigo.NullableOf(group.UniqueId),
 		},
 		{
@@ -133,7 +153,7 @@ func resumeMenus() []*interfacetoolsdefs.AppMenuEntity {
 			}),
 			Href:          "/languages",
 			Icon:          "/common/entity-default.svg",
-			ActiveMatcher: "languages",
+			ActiveMatcher: "/languages?(/|$)",
 			ParentId:      emigo.NullableOf(group.UniqueId),
 		},
 	}
