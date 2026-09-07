@@ -1,24 +1,62 @@
+/* PanelGroup (react-resizable-panels) renders its own flex container and
+   sets its own `display`/`flex-direction` inline - this only adds the
+   spacing/padding/alignment on top of that. No `gap` here (unlike the old
+   plain-flex layout this replaced): the width between the two panels is
+   now the resize handle itself (resume-creator__resize-handle below), and
+   a `gap` on top of that would double the visible spacing and throw off
+   the panels' own percentage-of-container size math. */
 .resume-creator {
-  display: flex;
-  gap: 1.5rem;
-  align-items: flex-start;
+  align-items: stretch;
   padding: 1rem;
 }
 
+/* Both panes stretch to match the taller one's height (flex default,
+   deliberately left un-overridden - the old layout instead used
+   align-items: flex-start, each column keeping its own natural height,
+   which no longer suits a resize handle meant to run the pane's full
+   height edge to edge). min-width: 0 keeps a long unbroken card label from
+   forcing a panel wider than its own %-based size - the same fix flex
+   items generally need for text-overflow to actually kick in, still
+   necessary now that the width comes from react-resizable-panels instead
+   of a plain flex-basis. overflow: hidden also isn't optional now (unlike
+   a case where a single dropdown could bleed past a fixed-width column):
+   allowing overflow at all defeats the resizable pane doing its job -
+   grow with content instead of respecting its own dragged size. */
 .resume-creator__column {
   min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Library is the browsing pane, not the resume itself - 30% is plenty for
-   a scrolling list of short cards, and leaves the selected-for-resume pane
-   (the thing actually being built) the majority of the width. */
-.resume-creator__column--library {
-  flex: 0 0 30%;
-  max-width: 30%;
+/* The draggable divider between the two panels. A plain 1px border would
+   be too thin to reliably grab; this is a wider invisible hit target with
+   a slim visible bar centered in it (::after), widening/tinting on
+   hover/drag so it reads as interactive rather than decorative. */
+.resume-creator__resize-handle {
+  position: relative;
+  width: 1rem;
+  flex: 0 0 auto;
+  cursor: col-resize;
+  outline: none;
 }
 
-.resume-creator__column--selected {
-  flex: 1 1 70%;
+.resume-creator__resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.125);
+  transition: background-color 0.1s ease, width 0.1s ease;
+}
+
+.resume-creator__resize-handle:hover::after,
+.resume-creator__resize-handle[data-resize-handle-active]::after {
+  width: 4px;
+  background: var(--bs-primary, #0d6efd);
 }
 
 /* Independent scroll region for the library list - bounded so a long

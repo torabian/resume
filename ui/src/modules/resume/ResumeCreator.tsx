@@ -22,6 +22,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import {
   Award,
   Briefcase,
@@ -670,17 +671,39 @@ export function ResumeCreatorPicker({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="resume-creator">
-        <div className="resume-creator__column resume-creator__column--selected">
+      <PanelGroup direction="horizontal" className="resume-creator">
+        {/* order/minSize mirror the old fixed 70/30 flex split (see this
+            file's own git history) - now just the *starting* point, since
+            the handle between the two lets a person drag it either way.
+            minSize on both keeps a stray drag from collapsing a pane to
+            nothing (the drop target disappearing mid-drag, or the library
+            shrinking to an unusable sliver). */}
+        <Panel
+          order={1}
+          defaultSize={70}
+          minSize={30}
+          className="resume-creator__column resume-creator__column--selected"
+        >
           <div className="resume-creator__column-title">Selected for resume</div>
           <div className="resume-creator__hint">
             Drag any section here from the right, then drag to reorder - this
             is exactly what ends up in the PDF, in this order.
           </div>
           <DropZone selected={selected} onRemove={removeSelected} />
-        </div>
+        </Panel>
 
-        <div className="resume-creator__column resume-creator__column--library">
+        <PanelResizeHandle className="resume-creator__resize-handle" />
+
+        {/* Library is the browsing pane, not the resume itself - 30% is
+            plenty for a scrolling list of short cards, and leaves the
+            selected-for-resume pane (the thing actually being built) the
+            majority of the width by default. */}
+        <Panel
+          order={2}
+          defaultSize={30}
+          minSize={20}
+          className="resume-creator__column resume-creator__column--library"
+        >
           <div className="resume-creator__column-title">Your library</div>
           <div className="resume-creator__hint">
             {loading
@@ -750,8 +773,8 @@ export function ResumeCreatorPicker({
               </div>
             )}
           </div>
-        </div>
-      </div>
+        </Panel>
+      </PanelGroup>
 
       <DragOverlay>
         {activeItem ? (
