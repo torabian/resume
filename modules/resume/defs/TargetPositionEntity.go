@@ -13,7 +13,7 @@ import (
 // The base class definition for targetPositionEntity
 type TargetPositionEntity struct {
 	Id       int64             `gorm:"primaryKey;autoIncrement" json:"-" yaml:"-"`
-	UniqueId string            `gorm:"type:varchar(100);default:gen_random_uuid();unique" json:"uniqueId" yaml:"uniqueId"`
+	UniqueId string            `gorm:"type:varchar(100);unique" json:"uniqueId" yaml:"uniqueId"`
 	Name     complexes.TString `json:"name" yaml:"name"`
 }
 
@@ -58,6 +58,20 @@ func CastTargetPositionEntityFromCli(c emigo.CliCastable) TargetPositionEntity {
 
 // Extra entity-specific code (hooks, custom methods, business logic, etc.) can be
 // appended here in this template, after the struct GoCommonStructGenerator produced.
+// BeforeCreate assigns UniqueId a random UUID (v4) if the caller hasn't already set one -
+// gorm calls this automatically from every Create()/Save() insert path (including the
+// has-many/many-to-many reconcile helpers in emigorm, which persist child rows via
+// tx.Save() directly rather than through a generated *CreateFn). This replaces relying
+// on a DB-level column default (e.g. Postgres's gen_random_uuid()): sqlite and MySQL
+// have no dialect-portable equivalent, so assigning it here instead works identically
+// across every gorm dialect, with no SQL default expression at all.
+func (x *TargetPositionEntity) BeforeCreate(tx *gorm.DB) error {
+	if x.UniqueId == "" {
+		x.UniqueId = emigo.NewUUIDv4()
+	}
+	return nil
+}
+
 // TargetPositionEntityCreateFn creates a new TargetPositionEntity row (and its array/collection/one relations,
 // including ones nested inside object/object? fields) from dto. dto.Id/dto.UniqueId are
 // assigned by the database (see AutoMigrate's column defaults) and populated back onto

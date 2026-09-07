@@ -208,3 +208,11 @@
   gap: 0.5rem;
   padding: 0 1rem 1rem;
 }
+
+/* ResumeContentField.tsx's own button row - "Build/Edit resume content"
+   plus "Download PDF" side by side. */
+.resume-content-field {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}

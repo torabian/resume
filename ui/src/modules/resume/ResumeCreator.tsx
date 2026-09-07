@@ -1,6 +1,6 @@
 import "./ResumeCreator.css";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -22,21 +22,40 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Briefcase, GripVertical, Plus, Search, Sparkles, X } from "lucide-react";
+import {
+  Award,
+  Briefcase,
+  Building2,
+  GripVertical,
+  Languages as LanguagesIcon,
+  Plus,
+  Search,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { usePageTitle } from "@fireback/ui-core/components/page-title/PageTitle";
+import { useLocale } from "@fireback/ui-core/hooks/useLocale";
+import { getTStringValue, type TString as TStringValue } from "@fireback/ui-core/types/TString";
 import { useSkillBrowseActionQuery } from "@/modules/resume/sdk/SkillBrowseAction";
 import { useProjectBrowseActionQuery } from "@/modules/resume/sdk/ProjectBrowseAction";
+import { useWorkExperienceBrowseActionQuery } from "@/modules/resume/sdk/WorkExperienceBrowseAction";
+import { useCertificationBrowseActionQuery } from "@/modules/resume/sdk/CertificationBrowseAction";
+import { useLanguageBrowseActionQuery } from "@/modules/resume/sdk/LanguageBrowseAction";
 
 // ResumeCreator - a two-pane picker for assembling one resume's worth of
-// skills/projects out of everything you've ever recorded (see Skill/Project
-// browse actions - both entities are standalone rows today, not scoped to
-// any one Resume, so this is a manual curation step rather than a
-// query-driven one).
+// content - work experience, skills, projects, certifications, languages -
+// out of everything you've ever recorded (see each entity's own browse
+// action; none of them are scoped to any one Resume, so this is a manual
+// curation step rather than a query-driven one). What ends up in `selected`
+// here is exactly what ResumeToLatexImplementation.go's own
+// ResumeToLatexAction renders into the PDF, section by section, in this
+// same order - see that file's own header comment.
 //
-// Right pane lists every Skill/Project (unfiltered browse - no qs means no
-// LIMIT is applied server-side, see emigorm.ApplyQueryPage, so this really
-// is "everything" - fine for a personal tool's own handful of rows).
-// Dragging a card from there into the left pane adds it to `selected`
+// Right pane lists every row of each kind (unfiltered browse - no qs means
+// no LIMIT is applied server-side, see emigorm.ApplyQueryPage, so this
+// really is "everything" - fine for a personal tool's own handful of rows),
+// grouped under GROUP_TITLES. Dragging a card from there into the left pane
+// adds it to `selected`
 // (this component's own state - nothing is persisted server-side by this
 // screen; see its own file-header note on why). Cards already in `selected`
 // drop out of the right pane so the same item can't be added twice, and can
@@ -50,12 +69,81 @@ import { useProjectBrowseActionQuery } from "@/modules/resume/sdk/ProjectBrowseA
 // attributes/listeners-on-a-grip-icon convention) rather than a new
 // library - one of the most widely used React DnD toolkits, and already
 // proven out elsewhere in this app.
-type ItemKind = "skill" | "project";
+type ItemKind = "skill" | "project" | "workExperience" | "certification" | "language";
+
+// Every kind offered by the picker, in the order they're rendered as groups
+// in the library pane below - also doubles as the single source of truth
+// pool-lookups (findAvailable, addChecked, ...) iterate over instead of
+// hand-listing each pool at every call site.
+const ITEM_KINDS: ItemKind[] = [
+  "workExperience",
+  "skill",
+  "project",
+  "certification",
+  "language",
+];
+
+const GROUP_TITLES: Record<ItemKind, string> = {
+  workExperience: "Work Experience",
+  skill: "Skills",
+  project: "Projects",
+  certification: "Certifications & Licenses",
+  language: "Languages",
+};
 
 export interface PickerItem {
   kind: ItemKind;
   uniqueId: string;
   label: string;
+}
+
+// jobTitle/company/name/etc are `complex: TString` server-side (a
+// locale->string map, e.g. {"en": "Software Engineer"}) - see
+// Resume.emi.yml's own field definitions for workExperience/certification/
+// language. This used to hand-roll its own {locale: value} lookup here,
+// which is exactly what broke it: the generated *Dto classes
+// (WorkExperienceDto.ts etc) don't hand a browse hook's caller a plain
+// {en: "..."} object at all - every `complex: TString` field is wrapped in
+// a real `@fireback/complexes` TString *class instance* (a getter backed by
+// a private `values` field), even when nothing asked for one explicitly
+// (WorkExperienceBrowseAction.ts's own default `creatorFn` always
+// constructs one). `map.en`/`Object.values(map)` against that instance
+// don't see `values.en` at all - they see the instance's own one
+// enumerable property, `values` (the *whole* {en: "...", ...} record,
+// still an object) - so the old code's strict `typeof v === "string"` guard
+// (added to fix an earlier crash where an unguarded version rendered that
+// object directly) just made it silently resolve to "" instead: correctly
+// not-a-crash, but still wrong. `getTStringValue` (@fireback/ui-core/types/
+// TString.ts) is this codebase's own already-proven fix for exactly this -
+// duck-typed against `.get` being a function - and is what every other
+// TString-displaying screen in this app already uses (RoleColumns.tsx,
+// WorkspaceColumns.tsx, Sidebar.tsx, ...); reusing it here instead of
+// re-diagnosing the same bug a third time.
+function pickLocale(ts: unknown, locale: string): string {
+  if (!ts) return "";
+  return getTStringValue(ts as TStringValue, locale);
+}
+
+// Last-line-of-defense for every place a label is actually rendered as a
+// JSX child (AvailableCard/SelectedCard/DragOverlay below): a plain string
+// (skill.name/project.name are plain `string` fields, not TString - see
+// Resume.emi.yml) passes straight through *without* going through
+// getTStringValue, which would otherwise index into it character-by-character
+// (a bare string has no `.get`, so it falls through to `value[locale]` then
+// `Object.values(value)` - on a string, that returns its individual
+// characters). Anything TString-shaped goes through pickLocale above, and
+// any other unexpected value (not even an object - a number, `null`
+// surviving a bad merge, ...) becomes "" rather than reaching JSX at all.
+// `PickerItem.label` is typed `string`, but that's a compile-time promise
+// only - a persisted `content` row is raw JSON off the wire, not something
+// TypeScript actually checked, so this is what makes a malformed one inert
+// instead of a crash. No locale needed here (defaults to "en", matching
+// ResumeToLatexImplementation.go's own default) - by construction `label`
+// is already a resolved plain string by the time it reaches these render
+// sites; this only ever fires for already-bad persisted data.
+function safeLabel(v: unknown): string {
+  if (typeof v === "string") return v;
+  return pickLocale(v, "en");
 }
 
 // Draggable/sortable ids need to be globally unique across both panes and
@@ -95,12 +183,17 @@ const collisionDetection: CollisionDetection = (args) => {
   return pointerCollisions.length > 0 ? pointerCollisions : rectIntersection(args);
 };
 
+const ITEM_ICONS: Record<ItemKind, typeof Sparkles> = {
+  skill: Sparkles,
+  project: Briefcase,
+  workExperience: Building2,
+  certification: Award,
+  language: LanguagesIcon,
+};
+
 function ItemIcon({ kind }: { kind: ItemKind }) {
-  return kind === "skill" ? (
-    <Sparkles size={14} className="resume-creator__card-icon" />
-  ) : (
-    <Briefcase size={14} className="resume-creator__card-icon" />
-  );
+  const Icon = ITEM_ICONS[kind];
+  return <Icon size={14} className="resume-creator__card-icon" />;
 }
 
 /** A card in the right (available) pane. Three independent ways to act on
@@ -150,7 +243,7 @@ function AvailableCard({
         className="resume-creator__card-checkbox"
         checked={checked}
         onChange={onToggleCheck}
-        aria-label={`Mark ${item.label} for batch add`}
+        aria-label={`Mark ${safeLabel(item.label)} for batch add`}
       />
       <button
         type="button"
@@ -159,7 +252,7 @@ function AvailableCard({
         title="Add to resume"
       >
         <ItemIcon kind={item.kind} />
-        <span className="resume-creator__card-label">{item.label}</span>
+        <span className="resume-creator__card-label">{safeLabel(item.label)}</span>
         <Plus size={14} className="resume-creator__card-add-icon" />
       </button>
     </div>
@@ -198,7 +291,7 @@ function SelectedCard({
         <GripVertical size={14} className="resume-creator__card-icon" />
       </span>
       <ItemIcon kind={item.kind} />
-      <span className="resume-creator__card-label">{item.label}</span>
+      <span className="resume-creator__card-label">{safeLabel(item.label)}</span>
       <button
         type="button"
         className="resume-creator__card-remove"
@@ -282,19 +375,24 @@ export function ResumeCreatorPicker({
   value: PickerItem[];
   onChange: (items: PickerItem[]) => void;
 }) {
+  const { locale } = useLocale();
+
   // No qs -> no LIMIT server-side (see this file's own header comment) -
-  // every skill/project the signed-in user has ever recorded comes back in
-  // one page, which is exactly what a picker needs (unlike ArchiveScreen's
-  // own paged/cursor browsing).
+  // every row of each kind the signed-in user has ever recorded comes back
+  // in one page, which is exactly what a picker needs (unlike
+  // ArchiveScreen's own paged/cursor browsing).
   const skillsQuery = useSkillBrowseActionQuery({});
   const projectsQuery = useProjectBrowseActionQuery({});
+  const workExperiencesQuery = useWorkExperienceBrowseActionQuery({});
+  const certificationsQuery = useCertificationBrowseActionQuery({});
+  const languagesQuery = useLanguageBrowseActionQuery({});
 
   const availableSkills: PickerItem[] = useMemo(
     () =>
       (skillsQuery.data?.data?.items ?? []).map((s: any) => ({
         kind: "skill" as const,
         uniqueId: s.uniqueId,
-        label: s.name,
+        label: safeLabel(s.name),
       })),
     [skillsQuery.data],
   );
@@ -303,10 +401,51 @@ export function ResumeCreatorPicker({
       (projectsQuery.data?.data?.items ?? []).map((p: any) => ({
         kind: "project" as const,
         uniqueId: p.uniqueId,
-        label: p.name,
+        label: safeLabel(p.name),
       })),
     [projectsQuery.data],
   );
+  const availableWorkExperiences: PickerItem[] = useMemo(
+    () =>
+      (workExperiencesQuery.data?.data?.items ?? []).map((w: any) => {
+        const jobTitle = pickLocale(w.jobTitle, locale);
+        const company = pickLocale(w.company, locale);
+        return {
+          kind: "workExperience" as const,
+          uniqueId: w.uniqueId,
+          label: company ? `${jobTitle} – ${company}` : jobTitle,
+        };
+      }),
+    [workExperiencesQuery.data, locale],
+  );
+  const availableCertifications: PickerItem[] = useMemo(
+    () =>
+      (certificationsQuery.data?.data?.items ?? []).map((c: any) => ({
+        kind: "certification" as const,
+        uniqueId: c.uniqueId,
+        label: pickLocale(c.name, locale),
+      })),
+    [certificationsQuery.data, locale],
+  );
+  const availableLanguages: PickerItem[] = useMemo(
+    () =>
+      (languagesQuery.data?.data?.items ?? []).map((l: any) => ({
+        kind: "language" as const,
+        uniqueId: l.uniqueId,
+        label: pickLocale(l.name, locale),
+      })),
+    [languagesQuery.data, locale],
+  );
+
+  // One lookup table keyed by kind, so findAvailable/addChecked/the render
+  // below don't each need their own hand-listed switch over all 5 pools.
+  const availableByKind: Record<ItemKind, PickerItem[]> = {
+    skill: availableSkills,
+    project: availableProjects,
+    workExperience: availableWorkExperiences,
+    certification: availableCertifications,
+    language: availableLanguages,
+  };
 
   // `selected`/`setSelected` below is every bit of this component's own
   // logic, unchanged from before this was split out - it's just backed by
@@ -323,6 +462,53 @@ export function ResumeCreatorPicker({
     () => new Set(selected.map(itemKey)),
     [selected],
   );
+
+  // `selected`'s own `label` is a snapshot taken the moment an item was
+  // added (see PickerItem's own doc comment), not a live lookup - it has to
+  // be, since a card still needs *something* to show even for an item whose
+  // source entity has since been deleted. But that means a label captured
+  // wrong (e.g. computed before its browse query had finished loading -
+  // this is exactly what happened for the crash this file used to have:
+  // dragging a work-experience card while pickLocale still had a bug baked
+  // an empty "" label into `content`, which then stayed empty forever after
+  // the bug was fixed, since nothing ever went back and recomputed it) can
+  // never self-correct on its own. This reconciles every selected item's
+  // label against the freshest one available once its own kind's browse
+  // query has data, silently repairing any drift the next time this modal
+  // opens - a stale/wrong label heals itself instead of staying wrong until
+  // someone notices and manually removes/re-adds the card. Deliberately
+  // depends on the 5 memoized available* arrays (not `selected` itself, and
+  // not the `availableByKind` object above, which is a fresh reference every
+  // render) - re-running only when a browse query's data actually changes
+  // keeps this from looping against its own setSelected call below.
+  useEffect(() => {
+    const pools: Record<ItemKind, PickerItem[]> = {
+      skill: availableSkills,
+      project: availableProjects,
+      workExperience: availableWorkExperiences,
+      certification: availableCertifications,
+      language: availableLanguages,
+    };
+    setSelected((prev) => {
+      let changed = false;
+      const next = prev.map((item) => {
+        const live = pools[item.kind].find((i) => i.uniqueId === item.uniqueId);
+        if (live && live.label && live.label !== item.label) {
+          changed = true;
+          return { ...item, label: live.label };
+        }
+        return item;
+      });
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    availableSkills,
+    availableProjects,
+    availableWorkExperiences,
+    availableCertifications,
+    availableLanguages,
+  ]);
 
   const [activeItem, setActiveItem] = useState<PickerItem | null>(null);
 
@@ -371,8 +557,8 @@ export function ResumeCreatorPicker({
   }
 
   function addChecked() {
-    const toAdd = [...availableSkills, ...availableProjects].filter((i) =>
-      checkedKeys.has(itemKey(i)),
+    const toAdd = ITEM_KINDS.flatMap((kind) => availableByKind[kind]).filter(
+      (i) => checkedKeys.has(itemKey(i)),
     );
     if (toAdd.length === 0) return;
     setSelected((prev) => {
@@ -387,8 +573,7 @@ export function ResumeCreatorPicker({
   }
 
   function findAvailable(kind: ItemKind, uniqueId: string): PickerItem | undefined {
-    const pool = kind === "skill" ? availableSkills : availableProjects;
-    return pool.find((i) => i.uniqueId === uniqueId);
+    return availableByKind[kind].find((i) => i.uniqueId === uniqueId);
   }
 
   function handleDragStart(event: DragStartEvent) {
@@ -455,26 +640,28 @@ export function ResumeCreatorPicker({
     );
   }
 
-  const pendingSkills = availableSkills.filter(
-    (i) => !selectedKeys.has(itemKey(i)),
-  );
-  const pendingProjects = availableProjects.filter(
-    (i) => !selectedKeys.has(itemKey(i)),
-  );
-
   // Search only ever narrows the library pane - it has no effect on what's
   // already picked on the left. Plain case-insensitive substring match on
   // the label, same as every other free-text filter in this app (see e.g.
   // TStringFilterDrawer.tsx).
   const searchTerm = search.trim().toLowerCase();
-  const filteredSkills = searchTerm
-    ? pendingSkills.filter((i) => i.label.toLowerCase().includes(searchTerm))
-    : pendingSkills;
-  const filteredProjects = searchTerm
-    ? pendingProjects.filter((i) => i.label.toLowerCase().includes(searchTerm))
-    : pendingProjects;
+  const groups: Array<{ kind: ItemKind; title: string; items: PickerItem[] }> =
+    ITEM_KINDS.map((kind) => {
+      const pending = availableByKind[kind].filter(
+        (i) => !selectedKeys.has(itemKey(i)),
+      );
+      const filtered = searchTerm
+        ? pending.filter((i) => i.label.toLowerCase().includes(searchTerm))
+        : pending;
+      return { kind, title: GROUP_TITLES[kind], items: filtered };
+    });
 
-  const loading = skillsQuery.isLoading || projectsQuery.isLoading;
+  const loading =
+    skillsQuery.isLoading ||
+    projectsQuery.isLoading ||
+    workExperiencesQuery.isLoading ||
+    certificationsQuery.isLoading ||
+    languagesQuery.isLoading;
 
   return (
     <DndContext
@@ -487,7 +674,8 @@ export function ResumeCreatorPicker({
         <div className="resume-creator__column resume-creator__column--selected">
           <div className="resume-creator__column-title">Selected for resume</div>
           <div className="resume-creator__hint">
-            Drag skills and projects here from the right, then drag to reorder.
+            Drag any section here from the right, then drag to reorder - this
+            is exactly what ends up in the PDF, in this order.
           </div>
           <DropZone selected={selected} onRemove={removeSelected} />
         </div>
@@ -505,7 +693,7 @@ export function ResumeCreatorPicker({
             <input
               type="search"
               className="form-control resume-creator__search-input"
-              placeholder="Search skills and projects..."
+              placeholder="Search your library..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -536,47 +724,31 @@ export function ResumeCreatorPicker({
               screen tall enough that the drop target scrolls out of view
               mid-drag. */}
           <div className="resume-creator__library-scroll">
-            {filteredSkills.length > 0 && (
-              <>
-                <div className="resume-creator__group-title">Skills</div>
-                <div className="resume-creator__list">
-                  {filteredSkills.map((item) => (
-                    <AvailableCard
-                      key={itemKey(item)}
-                      item={item}
-                      checked={checkedKeys.has(itemKey(item))}
-                      onToggleCheck={() => toggleChecked(item)}
-                      onAdd={() => addItem(item)}
-                    />
-                  ))}
-                </div>
-              </>
+            {groups.map(
+              (group) =>
+                group.items.length > 0 && (
+                  <div key={group.kind}>
+                    <div className="resume-creator__group-title">{group.title}</div>
+                    <div className="resume-creator__list">
+                      {group.items.map((item) => (
+                        <AvailableCard
+                          key={itemKey(item)}
+                          item={item}
+                          checked={checkedKeys.has(itemKey(item))}
+                          onToggleCheck={() => toggleChecked(item)}
+                          onAdd={() => addItem(item)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ),
             )}
 
-            {filteredProjects.length > 0 && (
-              <>
-                <div className="resume-creator__group-title">Projects</div>
-                <div className="resume-creator__list">
-                  {filteredProjects.map((item) => (
-                    <AvailableCard
-                      key={itemKey(item)}
-                      item={item}
-                      checked={checkedKeys.has(itemKey(item))}
-                      onToggleCheck={() => toggleChecked(item)}
-                      onAdd={() => addItem(item)}
-                    />
-                  ))}
-                </div>
-              </>
+            {searchTerm && groups.every((group) => group.items.length === 0) && (
+              <div className="resume-creator__empty">
+                No matches for &quot;{search}&quot;
+              </div>
             )}
-
-            {searchTerm &&
-              filteredSkills.length === 0 &&
-              filteredProjects.length === 0 && (
-                <div className="resume-creator__empty">
-                  No matches for &quot;{search}&quot;
-                </div>
-              )}
           </div>
         </div>
       </div>
@@ -586,7 +758,7 @@ export function ResumeCreatorPicker({
           <div className="resume-creator__card">
             <GripVertical size={14} className="resume-creator__card-icon" />
             <ItemIcon kind={activeItem.kind} />
-            <span className="resume-creator__card-label">{activeItem.label}</span>
+            <span className="resume-creator__card-label">{safeLabel(activeItem.label)}</span>
           </div>
         ) : null}
       </DragOverlay>
