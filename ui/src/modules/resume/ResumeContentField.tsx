@@ -16,13 +16,18 @@
 // `rjsfFields={{ resumeContent: ResumeContentField }}` +
 // `uiSchema: { content: { "ui:field": "resumeContent" } }` (see
 // ResumeRoutes.tsx). Nothing in the shared package changes.
+//
+// Also renders the "Download PDF" button next to the content picker -
+// useDownloadResumePdf.ts is the shared implementation, reused by
+// ResumeDownloadPdfButton.tsx for the read-only single/view screen (see
+// ResumeRoutes.tsx's own `singleScreenExtra`), so both places hit the same
+// endpoint the same way instead of two copies drifting apart.
 import { useState } from "react";
 import { type FieldProps } from "@rjsf/utils";
 import { useOverlay } from "@fireback/overlay";
 import { useRouter } from "@fireback/ui-core/hooks/useRouter";
-import { fetchx } from "@fireback/js-remote-ctx/common/fetchx";
-import { useFetchxContext } from "@fireback/js-remote-ctx/react/useFetchx";
 import { ResumeCreatorPicker, type PickerItem } from "./ResumeCreator";
+import { useDownloadResumePdf } from "./useDownloadResumePdf";
 import "./ResumeCreator.css";
 
 function ResumeContentModal({
@@ -62,13 +67,12 @@ export function ResumeContentField({
 }: FieldProps<PickerItem[]>) {
   const { openModal } = useOverlay();
   const router = useRouter();
-  const ctx = useFetchxContext();
   // Only present once the resume has actually been saved once - VEM's
   // create route (nav.Rcreate) has no :uniqueId segment at all, so a
   // brand-new, not-yet-saved resume has nothing for GET
   // /profile/:uniqueId/pdf to resolve yet (see ResumeToPdfImplementation.go).
   const uniqueId = router.query.uniqueId as string | undefined;
-  const [downloading, setDownloading] = useState(false);
+  const { download: downloadPdf, downloading } = useDownloadResumePdf(uniqueId);
   // CommonEntityManager flattens a fetched item via
   // JSON.parse(JSON.stringify(...)) before handing it to the form (see its
   // own doc comment), so a stored MJson array arrives as a plain array
@@ -83,49 +87,6 @@ export function ResumeContentField({
       if (type !== "resolved" || !data) return;
       onChange(data, fieldPathId.path);
     });
-  };
-
-  // Downloads the compiled PDF straight from GET /profile/:uniqueId/pdf
-  // (ResumeToPdfImplementation.go - a hand-rolled binary route, not a
-  // generated action, so there's no ResumeToPdfAction sdk to call - see
-  // that file's own doc comment for why). Uses fetchx directly rather than
-  // plain fetch/an <a href> so the request goes through the same
-  // baseUrl/auth-header/wasm-override plumbing every generated sdk call
-  // gets from FetchxProvider (see WithFireback.tsx) - a raw link would
-  // silently drop the Authorization header once this endpoint's own
-  // "registration, not enforcement yet" permission note (Resume.emi.yml)
-  // stops being true. Renders the response as a Blob and clicks a
-  // throwaway <a download> rather than navigating the tab there, since a
-  // failed compile comes back as JSON (see resumeToPdfHandler's error
-  // branch), not a PDF, and navigating would just show that raw JSON.
-  const downloadPdf = async () => {
-    if (!uniqueId || downloading) return;
-    setDownloading(true);
-    try {
-      const res = await fetchx(
-        `/profile/${encodeURIComponent(uniqueId)}/pdf`,
-        {},
-        ctx,
-      );
-      if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        throw new Error(`PDF request failed (${res.status}): ${body}`);
-      }
-      const blob = await res.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = objectUrl;
-      a.download = "resume.pdf";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(objectUrl);
-    } catch (err) {
-      console.error("Failed to download resume PDF", err);
-      window.alert("Could not generate the PDF - see the console for details.");
-    } finally {
-      setDownloading(false);
-    }
   };
 
   return (

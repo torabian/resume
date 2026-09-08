@@ -100,6 +100,7 @@ export function VirtualEntityManager<T = any>(
     keyExtractor,
     datatableSizeId,
     beforeSetValues,
+    singleScreenExtra,
   } = props;
 
   // Same reasoning as `effectiveColumns`/`Form` below - and the exact same
@@ -195,6 +196,7 @@ export function VirtualEntityManager<T = any>(
               fields={effectiveFields}
               getQuery={getQuery}
               updateQuery={updateQuery}
+              extra={singleScreenExtra}
             />
           }
           path={nav.Rsingle}

@@ -1,3 +1,4 @@
+import { type ReactNode } from "react";
 import { useRouter } from "@fireback/ui-core/hooks/useRouter";
 import { usePageTitle } from "@fireback/ui-core/components/page-title/PageTitle";
 import { useLocale } from "@fireback/ui-core/hooks/useLocale";
@@ -12,12 +13,15 @@ export function SingleScreen({
   fields,
   getQuery,
   updateQuery,
+  extra,
 }: {
   nav: EntityNavigation;
   title: string;
   fields: Array<{ key: string; label: string; format?: string }>;
   getQuery: AnyHook;
   updateQuery?: AnyHook;
+  /** See VirtualEntityManagerProps.singleScreenExtra's own doc comment. */
+  extra?: (entity: any) => ReactNode;
 }) {
   const router = useRouter();
   const uniqueId = router.query.uniqueId as string;
@@ -42,6 +46,7 @@ export function SingleScreen({
           elem: formatFieldValue(d?.[key], format, locale),
         }))}
       />
+      {extra?.(d)}
     </CommonSingleManager>
   );
 }

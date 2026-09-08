@@ -7,6 +7,7 @@ import { useResumeUpdateAction } from "@/modules/resume/sdk/ResumeUpdateAction";
 import { useResumeAwareDeleteAction } from "@/modules/resume/sdk/ResumeAwareDeleteAction";
 import { ResumeDto } from "@/modules/resume/sdk/ResumeDto";
 import { ResumeContentField } from "./ResumeContentField";
+import { ResumeDownloadPdfButton } from "./ResumeDownloadPdfButton";
 
 import {
   withTStringFields,
@@ -63,5 +64,15 @@ export function useResumeRoutes() {
     createQuery: useResumeCreateAction,
     updateQuery: useResumeUpdateAction,
     deleteQuery: useResumeAwareDeleteAction,
+    // Single/view screen (nav.Rsingle) - not just the edit form - gets its
+    // own "Download PDF" button too, hitting GET /profile/:uniqueId/pdf
+    // (see useDownloadResumePdf.ts). `entity` is whatever ResumeGetAction
+    // resolved; possibly still `undefined` on a first render before the
+    // fetch settles - ResumeDownloadPdfButton's own `uniqueId?` prop and
+    // disabled state already handle that the same way the edit form's
+    // copy handles a not-yet-saved resume.
+    singleScreenExtra: (entity: { uniqueId?: string }) => (
+      <ResumeDownloadPdfButton uniqueId={entity?.uniqueId} />
+    ),
   });
 }

@@ -1,3 +1,4 @@
+import { type ReactNode } from "react";
 import {
   type RJSFSchema,
   type UiSchema,
@@ -63,6 +64,20 @@ export interface VirtualEntityManagerProps<T = any> {
    * needing type-specific display logic - e.g. "tstring" for a
    * `complex: TString` field, see schemaCasting.ts's formatByFieldFormat. */
   fields?: Array<{ key: string; label: string; format?: string }>;
+
+  /** Extra content rendered on the single/view screen, below the plain
+   * field list GeneralEntityView already produces - for an action that
+   * doesn't fit "one more row of text" (a button hitting a bespoke
+   * endpoint, say) and so has no place in `fields`. Passed the fetched
+   * entity itself (whatever `getQuery` resolved, possibly still loading -
+   * check for the fields an implementation needs before using them) so it
+   * can build its own request/link off it (e.g. `entity?.uniqueId`).
+   * Optional and rendered nowhere else - every consumer that doesn't pass
+   * this keeps the exact single-screen layout it already had. See
+   * resume's own ResumeRoutes.tsx for a real usage (a "Download PDF"
+   * button hitting an endpoint outside this entity's own generated CRUD
+   * actions). */
+  singleScreenExtra?: (entity: Partial<T>) => ReactNode;
 
   /** emi-generated useXxxBrowseActionQuery hook. Presence adds the archive route. */
   browseQuery?: AnyHook;
