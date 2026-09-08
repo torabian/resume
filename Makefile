@@ -41,3 +41,19 @@ link:
 
 move:
 	rm -rf ui/fireback-packages && cp -rf ../fireback/ui/packages ui/fireback-packages && cd ui && rm -rf node_modules && npm i -f
+
+# Builds ui/ for production (ui/dist) and embeds it into
+# modules/interfaces/ui, so fireback's public folders feature serves it at
+# "/" - xapp.PublicFolders in cmd/main.go mounts modules/interfaces/ui.ResumeUI
+# there. Same mechanism as ../fireback/Makefile's interface-manage/
+# interface-ss targets: wipe the destination, drop the fresh build in, then
+# restore index.go (the go:embed wrapper - see its own doc comment) with
+# `git checkout`, since it must already be tracked (`git add` it once after
+# its first `make embed-ui`, or it'll be missing after the rm -rf).
+embed-ui:
+	cd ui && npm run build && \
+	cd - && \
+	rm -rf modules/interfaces/ui && \
+	cp -rf ui/dist modules/interfaces/ui && \
+	find modules/interfaces/ui -type d -empty -delete && \
+	git checkout modules/interfaces/ui/index.go

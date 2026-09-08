@@ -14,6 +14,7 @@ import (
 	"github.com/torabian/fireback/modules/internalstats"
 	"github.com/torabian/fireback/modules/reactivesearch"
 	"github.com/torabian/fireback/modules/storage"
+	ui "github.com/torabian/resume/modules/interfaces/ui"
 	"github.com/torabian/resume/modules/materialized"
 	"github.com/torabian/resume/modules/resume"
 
@@ -28,18 +29,22 @@ var PRODUCT_DESCRIPTION = "Ali's resume, stored structurally and built with fire
 // abac (auth/users/workspaces/notifications/passports, via
 // abac.AbacCompleteModules()) and the storage module, wired the same way -
 // minus nima's own business modules (musicalwork/score/category/
-// entitlement/infrasetup), its compiled front-end PublicFolders (this repo
-// has no ui/ build to embed), and (per instruction) the backup module.
+// entitlement/infrasetup) and (per instruction) the backup module.
 var xapp = &application.Application{
 	Title: PRODUCT_DESCRIPTION,
 
 	PublicFolders: []gintools.PublicFolderInfo{
+		// This project's own compiled front-end (ui/), embedded by `make
+		// embed-ui` into modules/interfaces/ui - see that Makefile target and
+		// modules/interfaces/ui/index.go. Prefix "/" mounts it at the site
+		// root, same as ../fireback/cmd/fireback/main.go mounts
+		// modules/interfaces/fireback-manage at "/manage".
+		{Fs: &ui.ResumeUI, Folder: ".", Prefix: "/"},
+
 		// abac's own self-service portal (password reset, account activation,
 		// etc. - see ../nima/cmd/nima-server/main.go's identical PublicFolders
 		// entry) ships pre-built inside the fireback module itself, so
-		// mounting it needs no go:embed of our own, unlike nima's "public"/
-		// "manage" entries (its own compiled front-end, which this project
-		// doesn't have).
+		// mounting it needs no go:embed of our own.
 		{Fs: &FbSelfService.FbSelfService, Folder: ".", Prefix: "/selfservice"},
 	},
 
