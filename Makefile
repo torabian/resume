@@ -4,7 +4,7 @@ project = resume
 
 # Rebuilds defs from every *.emi.yml, then builds the binary. Same shape as
 # ../nima/Makefile's default target.
-default: defs build
+default: build
 
 # Regenerates every module's defs (entities/DTOs/actions) from its own
 # *.emi.yml. resume must compile before materialized - Materialized.emi.yml

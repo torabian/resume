@@ -84,6 +84,12 @@ type ResumeSeederCompany struct {
 
 // Company references a ResumeSeederCompany.Key; left empty when the role
 // has no associated company.
+//
+// Remote is parsed from the seeder yaml but no longer applied: Resume.emi.yml
+// dropped workExperience.remote (see its own diff), so
+// resumedefs.WorkExperienceEntity has no matching field to copy it into
+// below anymore - any `remote:` key in resume-data.yml is now silently
+// ignored.
 type ResumeSeederWorkExperience struct {
 	Company        string            `yaml:"company"`
 	JobTitle       complexes.TString `yaml:"jobTitle"`
@@ -122,6 +128,13 @@ type ResumeSeederSkill struct {
 	Description       complexes.TString `yaml:"description"`
 }
 
+// IsOngoing/Technologies/Highlights are parsed from the seeder yaml but no
+// longer applied: Resume.emi.yml dropped all three from the `project`
+// entity in favor of the new experience/descriptions relation fields (see
+// ResumeActions.go's projectDtoFromEntity doc comment), so
+// resumedefs.ProjectEntity has no matching fields to copy them into below
+// anymore - any `isOngoing:`/`technologies:`/`highlights:` keys in
+// resume-data.yml are now silently ignored.
 type ResumeSeederProject struct {
 	// Key - see ResumeSeederSkill.Key's own doc comment; same idea, same
 	// `content` list.
@@ -230,16 +243,13 @@ func SeedResumeData(db *gorm.DB, seeder *ResumeDataSeeder) (*resumedefs.ResumeEn
 		for _, p := range seeder.Projects {
 			entity := &resumedefs.ProjectEntity{
 
-				Name:         p.Name,
-				Role:         p.Role,
-				Summary:      p.Summary,
-				StartDate:    complexes.XDate(p.StartDate),
-				EndDate:      complexes.XDate(p.EndDate),
-				IsOngoing:    emigo.NullableOf(p.IsOngoing),
-				Url:          emigo.NullableOf(p.Url),
-				RepoUrl:      emigo.NullableOf(p.RepoUrl),
-				Technologies: emigo.NullableOf(p.Technologies),
-				Highlights:   emigo.NullableOf(p.Highlights),
+				Name:      p.Name,
+				Role:      p.Role,
+				Summary:   p.Summary,
+				StartDate: complexes.XDate(p.StartDate),
+				EndDate:   complexes.XDate(p.EndDate),
+				Url:       emigo.NullableOf(p.Url),
+				RepoUrl:   emigo.NullableOf(p.RepoUrl),
 			}
 			created, err := resumedefs.ProjectEntityActions.Create(tx, entity)
 			if err != nil {
@@ -328,7 +338,6 @@ func SeedResumeData(db *gorm.DB, seeder *ResumeDataSeeder) (*resumedefs.ResumeEn
 				JobTitle:       w.JobTitle,
 				EmploymentType: emigo.NullableOf(w.EmploymentType),
 				Location:       w.Location,
-				Remote:         emigo.NullableOf(w.Remote),
 				StartDate:      complexes.XDate(w.StartDate),
 				EndDate:        complexes.XDate(w.EndDate),
 				Achievements:   emigo.NullableOf(w.Achievements),

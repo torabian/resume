@@ -9,17 +9,26 @@ import (
 
 // The base class definition for projectOptionalDto
 type ProjectOptionalDto struct {
-	UniqueId     emigo.Nullable[string]   `json:"uniqueId" yaml:"uniqueId"`
-	Name         emigo.Nullable[string]   `json:"name" yaml:"name"`
-	Role         complexes.TString        `json:"role" yaml:"role"`
-	Summary      complexes.TString        `json:"summary" yaml:"summary"`
-	StartDate    complexes.XDate          `json:"startDate" yaml:"startDate"`
-	EndDate      complexes.XDate          `json:"endDate" yaml:"endDate"`
-	IsOngoing    emigo.Nullable[bool]     `json:"isOngoing" yaml:"isOngoing"`
-	Url          emigo.Nullable[string]   `json:"url" yaml:"url"`
-	RepoUrl      emigo.Nullable[string]   `json:"repoUrl" yaml:"repoUrl"`
-	Technologies emigo.Nullable[[]string] `json:"technologies" yaml:"technologies"`
-	Highlights   emigo.Nullable[[]string] `json:"highlights" yaml:"highlights"`
+	UniqueId emigo.Nullable[string] `json:"uniqueId" yaml:"uniqueId"`
+	// The work experience that this project is done based on that.
+	Experience emigo.OneNullable[WorkExperienceDto] `json:"experience" yaml:"experience"`
+	// The project description, based on the target profile. So you can emphesize more on backend or front-end part of the project.
+	Descriptions emigo.ArrayNullable[ProjectOptionalDtoDescriptions] `json:"descriptions" yaml:"descriptions"`
+	Name         emigo.Nullable[string]                              `json:"name" yaml:"name"`
+	Role         complexes.TString                                   `json:"role" yaml:"role"`
+	Summary      complexes.TString                                   `json:"summary" yaml:"summary"`
+	StartDate    complexes.XDate                                     `json:"startDate" yaml:"startDate"`
+	EndDate      complexes.XDate                                     `json:"endDate" yaml:"endDate"`
+	Url          emigo.Nullable[string]                              `json:"url" yaml:"url"`
+	RepoUrl      emigo.Nullable[string]                              `json:"repoUrl" yaml:"repoUrl"`
+}
+
+// The base class definition for descriptions
+type ProjectOptionalDtoDescriptions struct {
+	UniqueId emigo.Nullable[string]               `json:"uniqueId" yaml:"uniqueId"`
+	Target   emigo.OneNullable[TargetPositionDto] `json:"target" yaml:"target"`
+	Content  complexes.TString                    `json:"content" yaml:"content"`
+	Skills   emigo.CollectionNullable[SkillDto]   `json:"skills" yaml:"skills"`
 }
 
 func (x *ProjectOptionalDto) Json() string {
@@ -34,6 +43,16 @@ func GetProjectOptionalDtoCliFlags(prefix string) []emigo.CliFlag {
 		{
 			Name: prefix + "unique-id",
 			Type: "string?",
+		},
+		{
+			Name:        prefix + "experience",
+			Type:        "one?",
+			Description: "The work experience that this project is done based on that.",
+		},
+		{
+			Name:        prefix + "descriptions",
+			Type:        "array?",
+			Description: "The project description, based on the target profile. So you can emphesize more on backend or front-end part of the project.",
 		},
 		{
 			Name: prefix + "name",
@@ -56,10 +75,6 @@ func GetProjectOptionalDtoCliFlags(prefix string) []emigo.CliFlag {
 			Type: "complex",
 		},
 		{
-			Name: prefix + "is-ongoing",
-			Type: "bool?",
-		},
-		{
 			Name: prefix + "url",
 			Type: "string?",
 		},
@@ -67,20 +82,18 @@ func GetProjectOptionalDtoCliFlags(prefix string) []emigo.CliFlag {
 			Name: prefix + "repo-url",
 			Type: "string?",
 		},
-		{
-			Name: prefix + "technologies",
-			Type: "slice?",
-		},
-		{
-			Name: prefix + "highlights",
-			Type: "slice?",
-		},
 	}
 }
 func CastProjectOptionalDtoFromCli(c emigo.CliCastable) ProjectOptionalDto {
 	data := ProjectOptionalDto{}
 	if c.IsSet("unique-id") {
 		emigo.ParseNullable(c.String("unique-id"), &data.UniqueId)
+	}
+	if c.IsSet("experience") {
+		data.Experience = emigo.CapturePossibleOneNullable(CastWorkExperienceDtoFromCli, "experience", c)
+	}
+	if c.IsSet("descriptions") {
+		data.Descriptions = emigo.CapturePossibleArrayNullable(CastProjectOptionalDtoDescriptionsFromCli, "descriptions", c)
 	}
 	if c.IsSet("name") {
 		emigo.ParseNullable(c.String("name"), &data.Name)
@@ -105,20 +118,49 @@ func CastProjectOptionalDtoFromCli(c emigo.CliCastable) ProjectOptionalDto {
 			u.UnmarshalText([]byte(c.String("end-date")))
 		}
 	}
-	if c.IsSet("is-ongoing") {
-		emigo.ParseNullable(c.String("is-ongoing"), &data.IsOngoing)
-	}
 	if c.IsSet("url") {
 		emigo.ParseNullable(c.String("url"), &data.Url)
 	}
 	if c.IsSet("repo-url") {
 		emigo.ParseNullable(c.String("repo-url"), &data.RepoUrl)
 	}
-	if c.IsSet("technologies") {
-		emigo.ParseNullable(c.String("technologies"), &data.Technologies)
+	return data
+}
+func GetProjectOptionalDtoDescriptionsCliFlags(prefix string) []emigo.CliFlag {
+	return []emigo.CliFlag{
+		{
+			Name: prefix + "unique-id",
+			Type: "string?",
+		},
+		{
+			Name: prefix + "target",
+			Type: "one?",
+		},
+		{
+			Name: prefix + "content",
+			Type: "complex",
+		},
+		{
+			Name: prefix + "skills",
+			Type: "collection?",
+		},
 	}
-	if c.IsSet("highlights") {
-		emigo.ParseNullable(c.String("highlights"), &data.Highlights)
+}
+func CastProjectOptionalDtoDescriptionsFromCli(c emigo.CliCastable) ProjectOptionalDtoDescriptions {
+	data := ProjectOptionalDtoDescriptions{}
+	if c.IsSet("unique-id") {
+		emigo.ParseNullable(c.String("unique-id"), &data.UniqueId)
+	}
+	if c.IsSet("target") {
+		data.Target = emigo.CapturePossibleOneNullable(CastTargetPositionDtoFromCli, "target", c)
+	}
+	if c.IsSet("content") {
+		if u, ok := any(&data.Content).(encoding.TextUnmarshaler); ok {
+			u.UnmarshalText([]byte(c.String("content")))
+		}
+	}
+	if c.IsSet("skills") {
+		data.Skills = emigo.CapturePossibleCollectionNullable(CastSkillDtoFromCli, "skills", c)
 	}
 	return data
 }

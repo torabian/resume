@@ -54,6 +54,22 @@ func ResumeModuleSetup(cfg *ResumeModuleConfig) *application.ModuleProvider {
 					&resumedefs.EducationEntity{},
 					&resumedefs.SkillEntity{},
 					&resumedefs.ProjectEntity{},
+					// ProjectEntityDescriptions (ProjectEntity.Descriptions, a
+					// `has-many`/OnDelete:CASCADE child - see Resume.emi.yml's
+					// `project.descriptions` field) needs its own explicit entry
+					// here: gorm's AutoMigrate only auto-adds a passed model's
+					// *belongs-to* targets and many-to-many join tables to the
+					// migration set (see gorm.io/gorm/migrator.Migrator.
+					// ReorderModels' parseDependence - a HasOne/HasMany relation
+					// only marks its target as "depended on", it's never appended
+					// to the set actually migrated) - a has-many child struct like
+					// this one is never created unless it's listed here itself.
+					// Omitting it doesn't fail AutoMigrate (no error, no log) - it
+					// just silently never creates the table, which then only
+					// surfaces later as a runtime "relation ... does not exist"
+					// the first time ProjectEntityUpdateFn's ReconcileHasMany
+					// actually queries it.
+					&resumedefs.ProjectEntityDescriptions{},
 					&resumedefs.CertificationEntity{},
 					&resumedefs.LanguageEntity{},
 				},

@@ -143,34 +143,6 @@ export class WorkExperienceDto {
     return this;
   }
   /**
-   *
-   * @type {boolean}
-   **/
-  #remote?: boolean | null | undefined = undefined;
-  /**
-   *
-   * @returns {boolean}
-   **/
-  get remote() {
-    return this.#remote;
-  }
-  /**
-   *
-   * @type {boolean}
-   **/
-  set remote(value: boolean | null | undefined) {
-    const correctType =
-      value === true ||
-      value === false ||
-      value === undefined ||
-      value === null;
-    this.#remote = correctType ? value : Boolean(value);
-  }
-  setRemote(value: boolean | null | undefined) {
-    this.remote = value;
-    return this;
-  }
-  /**
    * ISO-8601 date, e.g. "2021-03-01".
    * @type {XDate}
    **/
@@ -300,10 +272,6 @@ export class WorkExperienceDto {
       location: {
         title: "location_title",
       },
-      remote: {
-        type: "boolean",
-        title: "remote_title",
-      },
       startDate: {
         title: "start_date_title",
         description: "start_date_description",
@@ -336,7 +304,6 @@ export class WorkExperienceDto {
     employment_type_enum_freelance: "freelance",
     employment_type_title: "Employment Type",
     location_title: "Location",
-    remote_title: "Remote",
     start_date_title: "Start Date",
     start_date_description: 'ISO-8601 date, e.g. "2021-03-01".',
     end_date_title: "End Date",
@@ -395,9 +362,6 @@ export class WorkExperienceDto {
     if (d.location !== undefined) {
       this.location = d.location;
     }
-    if (d.remote !== undefined) {
-      this.remote = d.remote;
-    }
     if (d.startDate !== undefined) {
       this.startDate = d.startDate;
     }
@@ -419,7 +383,6 @@ export class WorkExperienceDto {
       jobTitle: this.#jobTitle,
       employmentType: this.#employmentType,
       location: this.#location,
-      remote: this.#remote,
       startDate: this.#startDate,
       endDate: this.#endDate,
       achievements: this.#achievements,
@@ -435,7 +398,6 @@ export class WorkExperienceDto {
       jobTitle: "jobTitle",
       employmentType: "employmentType",
       location: "location",
-      remote: "remote",
       startDate: "startDate",
       endDate: "endDate",
       achievements: "achievements",
@@ -504,11 +466,6 @@ export type WorkExperienceDtoType = {
    * @type {TString}
    **/
   location?: TString;
-  /**
-   *
-   * @type {boolean}
-   **/
-  remote?: boolean;
   /**
    * ISO-8601 date, e.g. "2021-03-01".
    * @type {XDate}

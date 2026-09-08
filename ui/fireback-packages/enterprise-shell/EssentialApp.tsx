@@ -13,6 +13,7 @@ import { ToastContainer } from "react-toastify";
 import { Fallback } from "@fireback/ui-core/components/fallback/Fallback";
 import { AppConfigContext } from "@fireback/ui-core/hooks/appConfigTools";
 import { UIStateProvider } from "@fireback/ui-core/hooks/uiStateContext";
+import { FrontendMenuProvider } from "@fireback/ui-core/hooks/frontendMenuRegistry";
 import { usePureLocale } from "@fireback/ui-core/hooks/usePureLocale";
 import { ErrorBoundary } from "react-error-boundary";
 import { SidebarMultiRouterSetup } from "./ApplicationPanels";
@@ -55,26 +56,34 @@ export function EssentialApp({
           through this shared EssentialApp). Mounted once, here, covers both. */}
       <ToastContainer />
       <UIStateProvider>
-        <ErrorBoundary
-          FallbackComponent={Fallback}
-          onReset={(details) => {
-            // Reset the state of your app so the error doesn't happen again
-          }}
-        >
-          <WithFireback
-            config={config}
-            prefix={apiPrefix}
-            queryClient={queryClient}
-            locale={locale}
+        {/* Wraps everything below, same as UIStateProvider itself - both the
+            module route hooks that call useMenu() (they run inside
+            ApplicationRoutes/SidebarMultiRouterSetup below) and Sidebar.tsx
+            (which reads the result via useFrontendMenuItems) need to be
+            descendants of this same provider instance. See
+            frontendMenuRegistry.tsx. */}
+        <FrontendMenuProvider>
+          <ErrorBoundary
+            FallbackComponent={Fallback}
+            onReset={(details) => {
+              // Reset the state of your app so the error doesn't happen again
+            }}
           >
-            <WithSelfServiceRoutes>
-              <SidebarMultiRouterSetup
-                queryClient={queryClient}
-                ApplicationRoutes={ApplicationRoutes}
-              />
-            </WithSelfServiceRoutes>
-          </WithFireback>
-        </ErrorBoundary>
+            <WithFireback
+              config={config}
+              prefix={apiPrefix}
+              queryClient={queryClient}
+              locale={locale}
+            >
+              <WithSelfServiceRoutes>
+                <SidebarMultiRouterSetup
+                  queryClient={queryClient}
+                  ApplicationRoutes={ApplicationRoutes}
+                />
+              </WithSelfServiceRoutes>
+            </WithFireback>
+          </ErrorBoundary>
+        </FrontendMenuProvider>
       </UIStateProvider>
     </QueryClientProvider>
   );

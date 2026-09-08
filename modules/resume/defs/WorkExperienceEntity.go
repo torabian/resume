@@ -18,7 +18,6 @@ type WorkExperienceEntity struct {
 	JobTitle       complexes.TString      `json:"jobTitle" yaml:"jobTitle"`
 	EmploymentType emigo.Nullable[string] `json:"employmentType" yaml:"employmentType"`
 	Location       complexes.TString      `json:"location" yaml:"location"`
-	Remote         emigo.Nullable[bool]   `json:"remote" yaml:"remote"`
 	// ISO-8601 date, e.g. "2021-03-01".
 	StartDate complexes.XDate `json:"startDate" yaml:"startDate"`
 	// ISO-8601 date. Empty/omitted when isCurrent is true.
@@ -58,10 +57,6 @@ func GetWorkExperienceEntityCliFlags(prefix string) []emigo.CliFlag {
 		{
 			Name: prefix + "location",
 			Type: "complex",
-		},
-		{
-			Name: prefix + "remote",
-			Type: "bool?",
 		},
 		{
 			Name:        prefix + "start-date",
@@ -104,9 +99,6 @@ func CastWorkExperienceEntityFromCli(c emigo.CliCastable) WorkExperienceEntity {
 		if u, ok := any(&data.Location).(encoding.TextUnmarshaler); ok {
 			u.UnmarshalText([]byte(c.String("location")))
 		}
-	}
-	if c.IsSet("remote") {
-		emigo.ParseNullable(c.String("remote"), &data.Remote)
 	}
 	if c.IsSet("start-date") {
 		if u, ok := any(&data.StartDate).(encoding.TextUnmarshaler); ok {
@@ -182,9 +174,6 @@ func WorkExperienceEntityUpdateFn(tx *gorm.DB, uniqueId string, input WorkExperi
 			changes["EmploymentType"] = input.EmploymentType
 		}
 		changes["Location"] = input.Location
-		if input.Remote.IsSet() {
-			changes["Remote"] = input.Remote
-		}
 		changes["StartDate"] = input.StartDate
 		changes["EndDate"] = input.EndDate
 		if input.Achievements.IsSet() {

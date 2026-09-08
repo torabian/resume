@@ -45,6 +45,35 @@ export interface VirtualEntityManagerProps<T = any> {
    * translated chrome/error text are. */
   rjsfFields?: RegistryFieldsType;
 
+  /** Escape hatch past `schema`/`uiSchema` entirely: when set, this renders
+   * as the create/edit form instead of the rjsf form makeJsonSchemaForm
+   * would otherwise build from `schema` - `schema`/`uiSchema`/`rjsfFields`
+   * are then only used for `columns`/`fields` derivation (archive/single
+   * screens), not for the form itself. Same shape/contract as
+   * fireback-packages/manage/users/UserEditForm.tsx's `Form` (a plain
+   * `EntityFormProps<T>` component: `{form, isEditing, initialData}`,
+   * `form` a FormikProps whose wrapped `setValues`/`setFieldValue` already
+   * feed CommonEntityManager's submit payload - see its own doc comment) -
+   * reach for this once an entity's form needs layout/widgets/repeatable
+   * sub-forms (e.g. tabs) a JSON Schema can't express, the same reasoning
+   * VirtualEntityManager.tsx's own file header gives for dropping to the
+   * fully hand-written bundle, just scoped to only the form instead of
+   * every route. Must be a stable reference (a module-level component, or
+   * memoized at the call site) - same reasoning as the internal `Form`
+   * this replaces (see VirtualEntityManager.tsx's own comment on why). */
+  customForm?: any;
+
+  /** Extra class name(s) on the create/edit form's own wrapping `<form>`
+   * (CommonEntityManager's `customClass` - see its own doc comment),
+   * appended to (not replacing) its default "headless-form-entity-manager"
+   * class - so the base class's own rules (e.g. theme-basic.css's
+   * `max-width: 500px`) still apply unless this entity's own stylesheet
+   * overrides them for the combined selector. Reach for this when a
+   * `customForm` needs more horizontal room than every other entity's
+   * plain-field form does (e.g. a form with tabs or side-by-side columns) -
+   * see ProjectRoutes.tsx for a real usage. */
+  formClassName?: string;
+
   /** Transforms a fetched item before it becomes the create/edit form's
    * initial values (see CommonEntityManager's own `beforeSetValues` prop,
    * which this passes straight through). Mainly for a `complex: XDate`

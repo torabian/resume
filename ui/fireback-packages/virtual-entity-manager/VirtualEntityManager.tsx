@@ -90,6 +90,8 @@ export function VirtualEntityManager<T = any>(
     schema,
     uiSchema,
     rjsfFields,
+    customForm,
+    formClassName,
     columns,
     fields,
     browseQuery,
@@ -141,11 +143,16 @@ export function VirtualEntityManager<T = any>(
   // See file header comment - this is the one identity that has to survive
   // unrelated re-renders. Assumes `schema`/`uiSchema` are themselves stable
   // references (module-level constants), the same assumption any memoized
-  // React value relies on.
-  const Form = useMemo(
+  // React value relies on. useMemo is still called unconditionally (rules
+  // of hooks) even though its result is only used when `customForm` (see
+  // types.ts's own doc comment) is absent - `customForm` itself is already
+  // expected to be a stable reference from its own call site, so it's used
+  // as-is rather than wrapped in another useMemo.
+  const jsonSchemaForm = useMemo(
     () => makeJsonSchemaForm<T>(schema, uiSchema, rjsfFields),
     [schema, uiSchema, rjsfFields],
   );
+  const Form = customForm ?? jsonSchemaForm;
 
   return (
     <>
@@ -163,6 +170,7 @@ export function VirtualEntityManager<T = any>(
               updateQuery={updateQuery}
               beforeSetValues={beforeSetValues}
               Form={Form}
+              formClassName={formClassName}
             />
           }
           path={nav.Rcreate}
@@ -182,6 +190,7 @@ export function VirtualEntityManager<T = any>(
               updateQuery={updateQuery}
               beforeSetValues={beforeSetValues}
               Form={Form}
+              formClassName={formClassName}
             />
           }
           path={nav.Redit}

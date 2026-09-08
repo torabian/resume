@@ -30,18 +30,29 @@ import { KeyboardAction } from "../../hooks/useExportTools";
 // and the per-field form errors never disagree about whether this was a
 // failure. Also checks the raw HTTP response for a non-2xx status with no
 // parsed envelope at all (e.g. a raw `--unstable`-style 500).
-function mutationErrorMessage(hook: any, s: typeof strings): string | undefined {
+function mutationErrorMessage(
+  hook: any,
+  s: typeof strings,
+): string | undefined {
   if (!hook) return undefined;
   const resp = hook.response;
   if (resp && resp.ok === false) {
-    return getQueryErrorString(s, hook) || `${s.table.errorTitle} (${resp.status})`;
+    return (
+      getQueryErrorString(s, hook) || `${s.table.errorTitle} (${resp.status})`
+    );
   }
   if (hook.isError) {
     return getQueryErrorString(s, hook) || s.table.errorTitle;
   }
   const errorInfo = hook.data?.error?.toJSON?.() ?? hook.data?.error;
-  if (errorInfo?.message || errorInfo?.messageTranslated || errorInfo?.errors?.length) {
-    return errorInfo.messageTranslated || errorInfo.message || s.table.errorTitle;
+  if (
+    errorInfo?.message ||
+    errorInfo?.messageTranslated ||
+    errorInfo?.errors?.length
+  ) {
+    return (
+      errorInfo.messageTranslated || errorInfo.message || s.table.errorTitle
+    );
   }
   return undefined;
 }
@@ -121,6 +132,7 @@ export const CommonEntityManager = ({
 
   useEffect(() => {
     const rawItem = getQuery?.data?.data?.item;
+
     // Bug fix: rawItem's DTO classes (e.g. UserDto) use real ES private (#) fields, and
     // their toJSON() only plainifies the top level - a nested object-type field (e.g.
     // UserDto.primaryAddress) is handed back as-is, still an instance of its own private-

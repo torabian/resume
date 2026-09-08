@@ -1,0 +1,13 @@
+/* Scoped override of theme-basic.css's own .headless-form-entity-manager
+   { max-width: 500px } - only for the project create/edit form
+   (ProjectRoutes.tsx's formClassName), which needs real horizontal room for
+   ProjectDescriptionsTabs.tsx's tabs, not a narrow single-column form like
+   every other resume entity's. Combined-class selector (both classes on the
+   same element - see EntityManagerScreen.tsx's own
+   `headless-form-entity-manager ${formClassName}` string), same specificity
+   as the rule being overridden - !important makes this win regardless of
+   which stylesheet Vite/the bundler happens to load last, rather than
+   relying on import order between two otherwise-equal-specificity rules. */
+.headless-form-entity-manager.project-edit-form {
+  max-width: 100% !important;
+}

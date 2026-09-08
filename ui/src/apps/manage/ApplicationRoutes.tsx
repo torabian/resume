@@ -10,8 +10,10 @@ import { useSkillRoutes } from "../../modules/resume/SkillRoutes";
 import { useProjectRoutes } from "../../modules/resume/ProjectRoutes";
 import { useCertificationRoutes } from "../../modules/resume/CertificationRoutes";
 import { useLanguageRoutes } from "../../modules/resume/LanguageRoutes";
+import { useResumeMenu } from "../../modules/resume/ResumeMenu";
 
 export function ApplicationRoutes({ routerId }: { routerId?: string }) {
+  useResumeMenu();
   const resumeRoutes = useResumeRoutes();
   const companyRoutes = useCompanyRoutes();
   const targetPositionRoutes = useTargetPositionRoutes();

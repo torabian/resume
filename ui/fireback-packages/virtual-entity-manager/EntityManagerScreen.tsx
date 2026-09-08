@@ -16,6 +16,7 @@ export function EntityManagerScreen<T>({
   updateQuery,
   beforeSetValues,
   Form,
+  formClassName,
 }: {
   nav: EntityNavigation;
   getKey: (m: Partial<T>) => string | undefined;
@@ -27,6 +28,7 @@ export function EntityManagerScreen<T>({
   updateQuery?: AnyHook;
   beforeSetValues?: (data: Partial<T>) => Partial<T>;
   Form: any;
+  formClassName?: string;
 }) {
   const { router, uniqueId, locale } = useCommonEntityManager<Partial<T>>();
 
@@ -47,6 +49,11 @@ export function EntityManagerScreen<T>({
       }
       beforeSetValues={beforeSetValues}
       Form={Form}
+      customClass={
+        formClassName
+          ? `headless-form-entity-manager ${formClassName}`
+          : undefined
+      }
       onEditTitle={editTitle || `Edit ${title}`}
       onCreateTitle={createTitle || `New ${title}`}
     />

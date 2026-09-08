@@ -296,14 +296,18 @@ func MaterializedResumeEntityUpdateFn(tx *gorm.DB, uniqueId string, input Materi
 		}
 		changes := map[string]interface{}{}
 		if input.Resume.IsSet() {
-			if input.Resume.Operation != "select" {
-				return fmt.Errorf("resume: updating a one/one? relation only supports the \"select\" operation (link to an existing row by its uniqueId), got %q", input.Resume.Operation)
+			selectorId := ""
+			if input.Resume.Operation == "select" {
+				if s, ok := input.Resume.Selector.(string); ok {
+					selectorId = s
+				}
+			} else {
+				selectorId = input.Resume.Item.UniqueId.OrDefault("")
 			}
-			var selectorId string
-			if s, ok := input.Resume.Selector.(string); ok {
-				selectorId = s
+			if selectorId == "" {
+				return fmt.Errorf("resume: updating a one/one? relation needs either {\"__operation\":\"select\",\"__selector\":...} or the target's own uniqueId in the payload")
 			}
-			resolvedId, err := emigorm.ReconcileOne[resumedefs.ResumeEntity](tx, input.Resume.Operation, selectorId, nil)
+			resolvedId, err := emigorm.ReconcileOne[resumedefs.ResumeEntity](tx, "select", selectorId, nil)
 			if err != nil {
 				return err
 			}

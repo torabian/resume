@@ -104,12 +104,16 @@ var xapp = &application.Application{
 		// migration. Unlike nima's own 3 manage-UI-specific entries
 		// (internal-stats/analytics/notifications, left out - see their
 		// removal note this comment used to carry), this project does have
-		// a compiled front-end of its own (ui/), so resumeMenus() (see
-		// cmd/resumeMenus.go) appends the 8 VirtualEntityManager screens
-		// wired in ui/src/apps/manage/ApplicationRoutes.tsx as one more
-		// sidebar group next to abac's own.
+		// a compiled front-end of its own (ui/). The "Resume" sidebar group
+		// and its 8 VirtualEntityManager screens used to be appended here
+		// via resumeMenus() (cmd/resumeMenus.go, a backend AppMenuEntity
+		// seeder) - that's gone now, replaced by ui/src/modules/resume/
+		// ResumeMenu.ts's useResumeMenu(), a frontend-only useMenu()
+		// registration called from ApplicationRoutes.tsx (same move
+		// ../../fireback/ui/packages/wallet/WalletMenu.ts made for the
+		// wallet module - see its own doc comment).
 		interfacetools.ModuleSetup(&interfacetools.InterfaceToolsModuleConfig{
-			ExtraAppMenus: append(abac.Menu, resumeMenus()...),
+			ExtraAppMenus: abac.Menu,
 		}),
 	}, abac.AbacCompleteModules()...),
 	// abac.AbacCompleteModules() bundles Workspace/User, Notification,

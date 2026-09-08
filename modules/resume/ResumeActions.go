@@ -120,7 +120,6 @@ func workExperienceDtoFromEntity(e *resumedefs.WorkExperienceEntity) resumedefs.
 		JobTitle:       e.JobTitle,
 		EmploymentType: e.EmploymentType,
 		Location:       e.Location,
-		Remote:         e.Remote,
 		StartDate:      e.StartDate,
 		EndDate:        e.EndDate,
 		Achievements:   e.Achievements,
@@ -155,20 +154,51 @@ func skillDtoFromEntity(e *resumedefs.SkillEntity) resumedefs.SkillDto {
 	return dto
 }
 
+// projectDtoFromEntity populates Experience/Descriptions from e's *preloaded*
+// relations - ProjectGetAction/ProjectUpdateAction/ProjectBrowseAction below
+// all chain .Preload("Experience")/.Preload("Descriptions.Target")/
+// .Preload("Descriptions.SkillsRow") onto the tx they pass in before calling
+// the generated resumedefs.ProjectEntityActions.*, specifically so
+// e.Experience/e.Descriptions/e.Descriptions[i].Target/SkillsRow are never
+// left at their zero value here. Without that preload, e.ExperienceId (and
+// each description's TargetId) is still a real, correctly-persisted FK - the
+// column write always worked - but e.Experience itself silently stays a
+// zero-valued WorkExperienceEntity, so it round-tripped back through the API
+// as "experience": null even right after a successful select.
 func projectDtoFromEntity(e *resumedefs.ProjectEntity) resumedefs.ProjectDto {
 	dto := resumedefs.ProjectDto{
-		UniqueId:     emigo.NullableOf(e.UniqueId),
-		Name:         e.Name,
-		Role:         e.Role,
-		Summary:      e.Summary,
-		StartDate:    e.StartDate,
-		EndDate:      e.EndDate,
-		IsOngoing:    e.IsOngoing,
-		Url:          e.Url,
-		RepoUrl:      e.RepoUrl,
-		Technologies: e.Technologies,
-		Highlights:   e.Highlights,
+		UniqueId:  emigo.NullableOf(e.UniqueId),
+		Name:      e.Name,
+		Role:      e.Role,
+		Summary:   e.Summary,
+		StartDate: e.StartDate,
+		EndDate:   e.EndDate,
+		Url:       e.Url,
+		RepoUrl:   e.RepoUrl,
 	}
+
+	if e.ExperienceId != 0 {
+		dto.Experience = emigo.NewOneNullable(workExperienceDtoFromEntity(&e.Experience))
+	}
+
+	descriptions := make([]resumedefs.ProjectDtoDescriptions, len(e.Descriptions))
+	for i, d := range e.Descriptions {
+		item := resumedefs.ProjectDtoDescriptions{
+			Content: d.Content,
+		}
+		if d.Target != nil {
+			item.Target = emigo.NewOneNullable(targetPositionDtoFromEntity(d.Target))
+		}
+		if len(d.SkillsRow) > 0 {
+			skills := make([]resumedefs.SkillDto, len(d.SkillsRow))
+			for j, s := range d.SkillsRow {
+				skills[j] = skillDtoFromEntity(s)
+			}
+			item.Skills = emigo.CollectionNullableReplace(skills)
+		}
+		descriptions[i] = item
+	}
+	dto.Descriptions = emigo.ArrayReplace(descriptions)
 
 	return dto
 }
@@ -459,7 +489,6 @@ func WorkExperienceCreateAction(c resumedefs.WorkExperienceCreateActionRequest) 
 		JobTitle:       c.Body.JobTitle,
 		EmploymentType: c.Body.EmploymentType,
 		Location:       c.Body.Location,
-		Remote:         c.Body.Remote,
 		StartDate:      c.Body.StartDate,
 		EndDate:        c.Body.EndDate,
 		Achievements:   c.Body.Achievements,
@@ -716,17 +745,22 @@ func SkillAwareDeleteAction(c resumedefs.SkillAwareDeleteActionRequest) (*resume
 func ProjectCreateAction(c resumedefs.ProjectCreateActionRequest) (*resumedefs.ProjectCreateActionResponse, error) {
 	tx := fireback.GetDbRef()
 
+	// Experience/Descriptions (the relation fields that replaced isOngoing/
+	// technologies/highlights below) aren't resolved here - unlike
+	// ProjectEntityUpdateFn (defs/ProjectEntity.go), which does resolve
+	// them via emigorm.ReconcileOne/ReconcileHasMany, Create goes straight
+	// to tx.Create(dto) with no relation handling of its own. Wire that up
+	// here (mirroring Update's approach) if project creation needs to set
+	// an experience/descriptions from the start rather than via a
+	// follow-up Update.
 	created, err := resumedefs.ProjectEntityActions.Create(tx, &resumedefs.ProjectEntity{
-		Name:         c.Body.Name,
-		Role:         c.Body.Role,
-		Summary:      c.Body.Summary,
-		StartDate:    c.Body.StartDate,
-		EndDate:      c.Body.EndDate,
-		IsOngoing:    c.Body.IsOngoing,
-		Url:          c.Body.Url,
-		RepoUrl:      c.Body.RepoUrl,
-		Technologies: c.Body.Technologies,
-		Highlights:   c.Body.Highlights,
+		Name:      c.Body.Name,
+		Role:      c.Body.Role,
+		Summary:   c.Body.Summary,
+		StartDate: c.Body.StartDate,
+		EndDate:   c.Body.EndDate,
+		Url:       c.Body.Url,
+		RepoUrl:   c.Body.RepoUrl,
 	})
 	if err != nil {
 		return nil, err
@@ -737,19 +771,56 @@ func ProjectCreateAction(c resumedefs.ProjectCreateActionRequest) (*resumedefs.P
 	}, nil
 }
 
+// projectPreloadedDb chains every Preload projectDtoFromEntity's own doc
+// comment relies on - Experience (a plain belongs-to) and, one level into
+// each has-many Descriptions row, its own Target (belongs-to) and SkillsRow
+// (many2many) - onto a fresh tx. gorm accumulates Preload calls on the
+// *gorm.DB session itself, so passing this straight into
+// resumedefs.ProjectEntityActions.Get/Browse (which just call plain
+// tx.First()/tx.Find() with no preloads of their own) is enough to carry
+// them through to the query those generated functions actually run.
+//
+// Deliberately NOT used for ProjectEntityActions.Update: Update's own
+// tx.Transaction(...) internally runs further queries against *other*
+// model types on that same session while resolving relations - e.g.
+// emigorm.ReconcileOne[WorkExperienceEntity] for `experience`,
+// emigorm.ReconcileOne[TargetPositionEntity] per description's `target` -
+// and a gorm session's accumulated Preload paths apply indiscriminately to
+// every query run through it, not just the one that actually has that
+// relation. Passing this into Update surfaced as "Descriptions: unsupported
+// relations for schema WorkExperienceEntity" the moment `experience` was
+// set: WorkExperienceEntity has no `Descriptions` field for
+// Preload("Descriptions.Target") to resolve against, so gorm's schema
+// parser rejected the query outright, taking down the *whole* update mid-
+// transaction, not just the relation being resolved. ProjectUpdateAction
+// below instead re-fetches (with these preloads) via a separate Get call,
+// after Update's own transaction has already committed and closed.
+func projectPreloadedDb() *gorm.DB {
+	return fireback.GetDbRef().
+		Preload("Experience").
+		Preload("Descriptions.Target").
+		Preload("Descriptions.SkillsRow")
+}
+
 func ProjectUpdateAction(c resumedefs.ProjectUpdateActionRequest) (*resumedefs.ProjectUpdateActionResponse, error) {
-	updated, err := resumedefs.ProjectEntityActions.Update(fireback.GetDbRef(), c.Params.UniqueId, c.Body)
-	if err != nil {
+	if _, err := resumedefs.ProjectEntityActions.Update(fireback.GetDbRef(), c.Params.UniqueId, c.Body); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &resumedefs.ProjectUpdateActionResponse{StatusCode: http.StatusNotFound, Payload: map[string]string{"error": "project not found"}}, nil
 		}
+		return nil, err
+	}
+	// Re-fetched (rather than reusing Update's own return value) specifically
+	// to pick up projectPreloadedDb's relations - see its own doc comment on
+	// why they can't just be chained onto the Update call itself.
+	updated, err := resumedefs.ProjectEntityActions.Get(projectPreloadedDb(), c.Params.UniqueId)
+	if err != nil {
 		return nil, err
 	}
 	return &resumedefs.ProjectUpdateActionResponse{Payload: fireback.GResponseSingleItem(projectDtoFromEntity(updated))}, nil
 }
 
 func ProjectGetAction(c resumedefs.ProjectGetActionRequest) (*resumedefs.ProjectGetActionResponse, error) {
-	entity, err := resumedefs.ProjectEntityActions.Get(fireback.GetDbRef(), c.Params.UniqueId)
+	entity, err := resumedefs.ProjectEntityActions.Get(projectPreloadedDb(), c.Params.UniqueId)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &resumedefs.ProjectGetActionResponse{StatusCode: http.StatusNotFound, Payload: map[string]string{"error": "project not found"}}, nil
@@ -761,7 +832,7 @@ func ProjectGetAction(c resumedefs.ProjectGetActionRequest) (*resumedefs.Project
 
 func ProjectBrowseAction(c resumedefs.ProjectBrowseActionRequest) (*resumedefs.ProjectBrowseActionResponse, error) {
 	qs := resumedefs.ProjectBrowseActionQueryFromString(c.QueryParams.Encode())
-	items, meta, err := resumedefs.ProjectEntityActions.Browse(fireback.GetDbRef(), qs, "")
+	items, meta, err := resumedefs.ProjectEntityActions.Browse(projectPreloadedDb(), qs, "")
 	if err != nil {
 		return nil, err
 	}

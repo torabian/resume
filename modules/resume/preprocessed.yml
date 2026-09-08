@@ -169,8 +169,6 @@ dtos:
   - name: location
     type: complex?
     complex: TString
-  - name: remote
-    type: bool?
   - name: startDate
     description: ISO-8601 date, e.g. "2021-03-01".
     type: complex
@@ -251,6 +249,26 @@ dtos:
   fields:
   - name: uniqueId
     type: string?
+  - name: experience
+    description: The work experience that this project is done based on that.
+    type: one?
+    target: WorkExperienceDto
+  - name: descriptions
+    description: The project description, based on the target profile. So you can
+      emphesize more on backend or front-end part of the project.
+    type: array?
+    fields:
+    - name: uniqueId
+      type: string?
+    - name: target
+      type: one?
+      target: TargetPositionDto
+    - name: content
+      type: complex
+      complex: TString
+    - name: skills
+      type: collection?
+      target: SkillDto
   - name: name
     type: string?
   - name: role
@@ -265,18 +283,10 @@ dtos:
   - name: endDate
     type: complex?
     complex: XDate
-  - name: isOngoing
-    type: bool?
   - name: url
     type: string?
   - name: repoUrl
     type: string?
-  - name: technologies
-    type: slice?
-    primitive: string
-  - name: highlights
-    type: slice?
-    primitive: string
 - description: Every field of the "certification" entity, but optional - used both
     as Update's partial input and as Browse's response item shape.
   name: certificationOptional
@@ -410,8 +420,6 @@ dtos:
   - name: location
     type: complex?
     complex: TString
-  - name: remote
-    type: bool?
   - name: startDate
     description: ISO-8601 date, e.g. "2021-03-01".
     type: complex
@@ -489,6 +497,24 @@ dtos:
   fields:
   - name: uniqueId
     type: string?
+  - name: experience
+    description: The work experience that this project is done based on that.
+    type: one?
+    target: WorkExperienceDto
+  - name: descriptions
+    description: The project description, based on the target profile. So you can
+      emphesize more on backend or front-end part of the project.
+    type: array
+    fields:
+    - name: target
+      type: one?
+      target: TargetPositionDto
+    - name: content
+      type: complex
+      complex: TString
+    - name: skills
+      type: collection?
+      target: SkillDto
   - name: name
     type: string
   - name: role
@@ -503,18 +529,10 @@ dtos:
   - name: endDate
     type: complex?
     complex: XDate
-  - name: isOngoing
-    type: bool?
   - name: url
     type: string?
   - name: repoUrl
     type: string?
-  - name: technologies
-    type: slice?
-    primitive: string
-  - name: highlights
-    type: slice?
-    primitive: string
 - description: Plain dto mirroring the "certification" entity's own fields.
   name: certification
   fields:
@@ -641,8 +659,6 @@ entities:
   - name: location
     type: complex?
     complex: TString
-  - name: remote
-    type: bool?
   - name: startDate
     description: ISO-8601 date, e.g. "2021-03-01".
     type: complex
@@ -714,6 +730,24 @@ entities:
   description: A single skill/technology entry, linked to a Resume.
 - name: project
   fields:
+  - name: experience
+    description: The work experience that this project is done based on that.
+    type: one?
+    target: WorkExperienceEntity
+  - name: descriptions
+    description: The project description, based on the target profile. So you can
+      emphesize more on backend or front-end part of the project.
+    type: array
+    fields:
+    - name: target
+      type: one
+      target: TargetPositionEntity
+    - name: content
+      type: complex
+      complex: TString
+    - name: skills
+      type: collection?
+      target: SkillEntity
   - name: name
     type: string
   - name: role
@@ -728,18 +762,10 @@ entities:
   - name: endDate
     type: complex?
     complex: XDate
-  - name: isOngoing
-    type: bool?
   - name: url
     type: string?
   - name: repoUrl
     type: string?
-  - name: technologies
-    type: slice?
-    primitive: string
-  - name: highlights
-    type: slice?
-    primitive: string
   description: A portfolio/side/work project entry, linked to a Resume.
 - name: certification
   fields:

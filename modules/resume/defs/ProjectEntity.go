@@ -12,18 +12,32 @@ import (
 
 // The base class definition for projectEntity
 type ProjectEntity struct {
-	Id           int64                    `gorm:"primaryKey;autoIncrement" json:"-" yaml:"-"`
-	UniqueId     string                   `gorm:"type:varchar(100);unique" json:"uniqueId" yaml:"uniqueId"`
-	Name         string                   `json:"name" yaml:"name"`
-	Role         complexes.TString        `json:"role" yaml:"role"`
-	Summary      complexes.TString        `json:"summary" yaml:"summary"`
-	StartDate    complexes.XDate          `json:"startDate" yaml:"startDate"`
-	EndDate      complexes.XDate          `json:"endDate" yaml:"endDate"`
-	IsOngoing    emigo.Nullable[bool]     `json:"isOngoing" yaml:"isOngoing"`
-	Url          emigo.Nullable[string]   `json:"url" yaml:"url"`
-	RepoUrl      emigo.Nullable[string]   `json:"repoUrl" yaml:"repoUrl"`
-	Technologies emigo.Nullable[[]string] `json:"technologies" yaml:"technologies"`
-	Highlights   emigo.Nullable[[]string] `json:"highlights" yaml:"highlights"`
+	Id       int64  `gorm:"primaryKey;autoIncrement" json:"-" yaml:"-"`
+	UniqueId string `gorm:"type:varchar(100);unique" json:"uniqueId" yaml:"uniqueId"`
+	// The work experience that this project is done based on that.
+	Experience WorkExperienceEntity `gorm:"foreignKey:ExperienceId;references:Id;constraint:-" json:"experience" yaml:"experience"`
+	// The project description, based on the target profile. So you can emphesize more on backend or front-end part of the project.
+	Descriptions []*ProjectEntityDescriptions `gorm:"foreignKey:LinkerId;references:Id;constraint:OnDelete:CASCADE" json:"descriptions" yaml:"descriptions"`
+	Name         string                       `json:"name" yaml:"name"`
+	Role         complexes.TString            `json:"role" yaml:"role"`
+	Summary      complexes.TString            `json:"summary" yaml:"summary"`
+	StartDate    complexes.XDate              `json:"startDate" yaml:"startDate"`
+	EndDate      complexes.XDate              `json:"endDate" yaml:"endDate"`
+	Url          emigo.Nullable[string]       `json:"url" yaml:"url"`
+	RepoUrl      emigo.Nullable[string]       `json:"repoUrl" yaml:"repoUrl"`
+	ExperienceId int64                        `gorm:"index" json:"-" yaml:"-"`
+}
+
+// The base class definition for descriptions
+type ProjectEntityDescriptions struct {
+	Target    *TargetPositionEntity                 `gorm:"foreignKey:TargetId;references:Id" json:"target" yaml:"target"`
+	Content   complexes.TString                     `json:"content" yaml:"content"`
+	Skills    emigo.CollectionNullable[SkillEntity] `gorm:"-" json:"skills" yaml:"skills"`
+	Id        int64                                 `gorm:"primaryKey;autoIncrement" json:"-" yaml:"-"`
+	UniqueId  string                                `gorm:"type:varchar(100);unique" json:"uniqueId" yaml:"uniqueId"`
+	LinkerId  int64                                 `gorm:"index" json:"linkerId" yaml:"linkerId"`
+	TargetId  int64                                 `gorm:"index" json:"-" yaml:"-"`
+	SkillsRow []*SkillEntity                        `gorm:"many2many:project_skills;foreignKey:Id;references:Id" json:"-" yaml:"-"`
 }
 
 func (x *ProjectEntity) Json() string {
@@ -42,6 +56,16 @@ func GetProjectEntityCliFlags(prefix string) []emigo.CliFlag {
 		{
 			Name: prefix + "unique-id",
 			Type: "string",
+		},
+		{
+			Name:        prefix + "experience",
+			Type:        "class?",
+			Description: "The work experience that this project is done based on that.",
+		},
+		{
+			Name:        prefix + "descriptions",
+			Type:        "_list",
+			Description: "The project description, based on the target profile. So you can emphesize more on backend or front-end part of the project.",
 		},
 		{
 			Name: prefix + "name",
@@ -64,10 +88,6 @@ func GetProjectEntityCliFlags(prefix string) []emigo.CliFlag {
 			Type: "complex",
 		},
 		{
-			Name: prefix + "is-ongoing",
-			Type: "bool?",
-		},
-		{
 			Name: prefix + "url",
 			Type: "string?",
 		},
@@ -76,12 +96,8 @@ func GetProjectEntityCliFlags(prefix string) []emigo.CliFlag {
 			Type: "string?",
 		},
 		{
-			Name: prefix + "technologies",
-			Type: "slice?",
-		},
-		{
-			Name: prefix + "highlights",
-			Type: "slice?",
+			Name: prefix + "experience-id",
+			Type: "int64",
 		},
 	}
 }
@@ -116,20 +132,79 @@ func CastProjectEntityFromCli(c emigo.CliCastable) ProjectEntity {
 			u.UnmarshalText([]byte(c.String("end-date")))
 		}
 	}
-	if c.IsSet("is-ongoing") {
-		emigo.ParseNullable(c.String("is-ongoing"), &data.IsOngoing)
-	}
 	if c.IsSet("url") {
 		emigo.ParseNullable(c.String("url"), &data.Url)
 	}
 	if c.IsSet("repo-url") {
 		emigo.ParseNullable(c.String("repo-url"), &data.RepoUrl)
 	}
-	if c.IsSet("technologies") {
-		emigo.ParseNullable(c.String("technologies"), &data.Technologies)
+	if c.IsSet("experience-id") {
+		data.ExperienceId = int64(c.Int64("experience-id"))
 	}
-	if c.IsSet("highlights") {
-		emigo.ParseNullable(c.String("highlights"), &data.Highlights)
+	return data
+}
+func GetProjectEntityDescriptionsCliFlags(prefix string) []emigo.CliFlag {
+	return []emigo.CliFlag{
+		{
+			Name: prefix + "target",
+			Type: "class",
+		},
+		{
+			Name: prefix + "content",
+			Type: "complex",
+		},
+		{
+			Name: prefix + "skills",
+			Type: "collection?",
+		},
+		{
+			Name: prefix + "id",
+			Type: "int64",
+		},
+		{
+			Name: prefix + "unique-id",
+			Type: "string",
+		},
+		{
+			Name: prefix + "linker-id",
+			Type: "int64",
+		},
+		{
+			Name: prefix + "target-id",
+			Type: "int64",
+		},
+		{
+			Name: prefix + "skills-row",
+			Type: "complex",
+		},
+	}
+}
+func CastProjectEntityDescriptionsFromCli(c emigo.CliCastable) ProjectEntityDescriptions {
+	data := ProjectEntityDescriptions{}
+	if c.IsSet("content") {
+		if u, ok := any(&data.Content).(encoding.TextUnmarshaler); ok {
+			u.UnmarshalText([]byte(c.String("content")))
+		}
+	}
+	if c.IsSet("skills") {
+		data.Skills = emigo.CapturePossibleCollectionNullable(CastSkillEntityFromCli, "skills", c)
+	}
+	if c.IsSet("id") {
+		data.Id = int64(c.Int64("id"))
+	}
+	if c.IsSet("unique-id") {
+		data.UniqueId = c.String("unique-id")
+	}
+	if c.IsSet("linker-id") {
+		data.LinkerId = int64(c.Int64("linker-id"))
+	}
+	if c.IsSet("target-id") {
+		data.TargetId = int64(c.Int64("target-id"))
+	}
+	if c.IsSet("skills-row") {
+		if u, ok := any(&data.SkillsRow).(encoding.TextUnmarshaler); ok {
+			u.UnmarshalText([]byte(c.String("skills-row")))
+		}
 	}
 	return data
 }
@@ -144,6 +219,20 @@ func CastProjectEntityFromCli(c emigo.CliCastable) ProjectEntity {
 // have no dialect-portable equivalent, so assigning it here instead works identically
 // across every gorm dialect, with no SQL default expression at all.
 func (x *ProjectEntity) BeforeCreate(tx *gorm.DB) error {
+	if x.UniqueId == "" {
+		x.UniqueId = emigo.NewUUIDv4()
+	}
+	return nil
+}
+
+// BeforeCreate assigns UniqueId a random UUID (v4) if the caller hasn't already set one -
+// gorm calls this automatically from every Create()/Save() insert path (including the
+// has-many/many-to-many reconcile helpers in emigorm, which persist child rows via
+// tx.Save() directly rather than through a generated *CreateFn). This replaces relying
+// on a DB-level column default (e.g. Postgres's gen_random_uuid()): sqlite and MySQL
+// have no dialect-portable equivalent, so assigning it here instead works identically
+// across every gorm dialect, with no SQL default expression at all.
+func (x *ProjectEntityDescriptions) BeforeCreate(tx *gorm.DB) error {
 	if x.UniqueId == "" {
 		x.UniqueId = emigo.NewUUIDv4()
 	}
@@ -186,6 +275,24 @@ func ProjectEntityUpdateFn(tx *gorm.DB, uniqueId string, input ProjectOptionalDt
 			return err
 		}
 		changes := map[string]interface{}{}
+		if input.Experience.IsSet() {
+			selectorId := ""
+			if input.Experience.Operation == "select" {
+				if s, ok := input.Experience.Selector.(string); ok {
+					selectorId = s
+				}
+			} else {
+				selectorId = input.Experience.Item.UniqueId.OrDefault("")
+			}
+			if selectorId == "" {
+				return fmt.Errorf("experience: updating a one/one? relation needs either {\"__operation\":\"select\",\"__selector\":...} or the target's own uniqueId in the payload")
+			}
+			resolvedId, err := emigorm.ReconcileOne[WorkExperienceEntity](tx, "select", selectorId, nil)
+			if err != nil {
+				return err
+			}
+			changes["ExperienceId"] = resolvedId
+		}
 		if input.Name.IsSet() {
 			changes["Name"] = input.Name
 		}
@@ -193,24 +300,68 @@ func ProjectEntityUpdateFn(tx *gorm.DB, uniqueId string, input ProjectOptionalDt
 		changes["Summary"] = input.Summary
 		changes["StartDate"] = input.StartDate
 		changes["EndDate"] = input.EndDate
-		if input.IsOngoing.IsSet() {
-			changes["IsOngoing"] = input.IsOngoing
-		}
 		if input.Url.IsSet() {
 			changes["Url"] = input.Url
 		}
 		if input.RepoUrl.IsSet() {
 			changes["RepoUrl"] = input.RepoUrl
 		}
-		if input.Technologies.IsSet() {
-			changes["Technologies"] = input.Technologies
-		}
-		if input.Highlights.IsSet() {
-			changes["Highlights"] = input.Highlights
-		}
 		if len(changes) > 0 {
 			if err := tx.Model(&entity).Updates(changes).Error; err != nil {
 				return err
+			}
+		}
+		if input.Descriptions.IsSet() {
+			items := make([]*ProjectEntityDescriptions, len(input.Descriptions.Items))
+			for i := range input.Descriptions.Items {
+				src := input.Descriptions.Items[i]
+				item := &ProjectEntityDescriptions{
+					UniqueId: src.UniqueId.OrDefault(""),
+					Content:  src.Content,
+				}
+				if src.Target.IsSet() {
+					selectorId := ""
+					if src.Target.Operation == "select" {
+						if s, ok := src.Target.Selector.(string); ok {
+							selectorId = s
+						}
+					} else {
+						selectorId = src.Target.Item.UniqueId.OrDefault("")
+					}
+					if selectorId == "" {
+						return fmt.Errorf("descriptions.target: updating a one/one? relation needs either {\"__operation\":\"select\",\"__selector\":...} or the target's own uniqueId in the payload")
+					}
+					resolvedId, err := emigorm.ReconcileOne[TargetPositionEntity](tx, "select", selectorId, nil)
+					if err != nil {
+						return err
+					}
+					item.TargetId = resolvedId
+				}
+				items[i] = item
+			}
+			if err := emigorm.ReconcileHasMany(tx, "linker_id", entity.Id, input.Descriptions.Operation, items); err != nil {
+				return err
+			}
+			for i := range items {
+				src := input.Descriptions.Items[i]
+				item := items[i]
+				if src.Skills.IsSet() {
+					subItems := make([]*SkillEntity, len(src.Skills.Items))
+					for j := range src.Skills.Items {
+						uid := src.Skills.Items[j].UniqueId.OrDefault("")
+						if uid == "" {
+							return fmt.Errorf("descriptions.skills: updating a collection/collection? relation only supports referencing existing rows by uniqueId, item %d has none", j)
+						}
+						var existing SkillEntity
+						if err := tx.First(&existing, "unique_id = ?", uid).Error; err != nil {
+							return err
+						}
+						subItems[j] = &existing
+					}
+					if err := emigorm.ReconcileManyToMany(tx, item, "SkillsRow", src.Skills.Operation, subItems); err != nil {
+						return err
+					}
+				}
 			}
 		}
 		return nil
@@ -299,6 +450,12 @@ func ProjectEntityAwareDeletePreviewFn(tx *gorm.DB, uniqueIds []string) (*Projec
 	}
 	affected := []ProjectEntityAwareDeleteAffected{}
 	var total int64
+	var affected0 int64
+	tx.Model(&ProjectEntityDescriptions{}).Where("linker_id IN ?", ids).Count(&affected0)
+	if affected0 > 0 {
+		affected = append(affected, ProjectEntityAwareDeleteAffected{Relation: "descriptions", Count: affected0})
+		total += affected0
+	}
 	message := fmt.Sprintf("Deleting %d ProjectEntity row(s) will affect %d related record(s) across %d relation(s).", len(rows), total, len(affected))
 	return &ProjectEntityAwareDeletePreview{Message: message, Affected: affected}, nil
 }
@@ -318,6 +475,9 @@ func ProjectEntityAwareDeleteFn(tx *gorm.DB, uniqueIds []string) error {
 		ids := make([]int64, len(rows))
 		for i := range rows {
 			ids[i] = rows[i].Id
+		}
+		if err := tx.Where("linker_id IN ?", ids).Delete(&ProjectEntityDescriptions{}).Error; err != nil {
+			return err
 		}
 		return tx.Where("id IN ?", ids).Delete(&ProjectEntity{}).Error
 	})

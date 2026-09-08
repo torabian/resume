@@ -11,20 +11,31 @@ package resume
 // build on: given a Resume row, produce correct, compilable .tex text.
 //
 // What this covers: the Resume's own profile fields (fullName/headline/
-// summary/contact info) plus every section - WorkExperience, Skill,
-// Project, Certification, Language - picked for it via the Resume Creator
-// screen (`resume.content` - see ResumeCreator.tsx's own PickerItem shape,
-// {kind, uniqueId, label}, which is exactly what's unmarshaled below).
-// Every section is scoped by `content` the same way now: nothing appears in
-// the PDF that wasn't dragged/clicked into the builder's left pane, and
-// each section's own row order follows the order items were arranged
-// there (see DropZone's own doc comment on why that pane is sortable) -
-// resolveItems below preserves `content`'s order by construction, iterating
-// it once and appending each kind into its own slice as it goes, rather
-// than a per-kind Browse query. Education is the one entity left out even
-// from that - Resume.emi.yml's seeder has no sample data for it yet and
+// summary/contact info) plus every section - Skill, Project, Certification,
+// Language - picked for it via the Resume Creator screen (`resume.content`
+// - see ResumeCreator.tsx's own PickerItem shape, {kind, uniqueId, label,
+// projectId?}, which is exactly what's unmarshaled below). Every section is
+// scoped by `content` the same way now: nothing appears in the PDF that
+// wasn't dragged/clicked into the builder's left pane, and each section's
+// own row order follows the order items were arranged there (see
+// DropZone's own doc comment on why that pane is sortable) - resolveContent
+// below preserves `content`'s order by construction, iterating it once and
+// appending each kind into its own slice/group as it goes, rather than a
+// per-kind Browse query. Education is the one entity left out even from
+// that - Resume.emi.yml's seeder has no sample data for it yet and
 // ResumeCreator.tsx's own picker doesn't offer it either, not a deliberate
 // omission.
+//
+// Work experience is not one of those picked kinds at all - there's no way
+// to drag one in directly anymore (see ResumeCreator.tsx's own header
+// comment). A "Work Experience" section only appears here because at least
+// one picked project *description* (Resume.emi.yml's
+// `project.descriptions`, one per target position) belongs to a project
+// whose own `experience` link points at it - resolveContent groups picked
+// descriptions by that link automatically, and latexDocument nests each
+// group's descriptions under its experience's own header. A description
+// whose project has no `experience` link instead lands under "Projects" -
+// see resolveContent/latexDocument's own comments on both paths.
 //
 // This used to browse WorkExperience/Certification/Language unfiltered
 // instead of going through `content` at all (on the theory that neither
@@ -48,16 +59,124 @@ import (
 
 	"github.com/torabian/fireback/modules/fireback"
 	resumedefs "github.com/torabian/resume/modules/resume/defs"
+	"gorm.io/gorm"
 )
 
 // resumeContentItem mirrors ui/src/modules/resume/ResumeCreator.tsx's own
-// PickerItem exactly - {kind, uniqueId, label} - since `resume.content` is
-// literally that array, JSON.stringify'd by the picker and stored verbatim
-// (see Resume.emi.yml's own doc comment on the `content` field).
+// PickerItem exactly - {kind, uniqueId, label, projectId?} - since
+// `resume.content` is literally that array, JSON.stringify'd by the picker
+// and stored verbatim (see Resume.emi.yml's own doc comment on the
+// `content` field).
+//
+// ProjectId is only ever set for a kind "project" item, and only when that
+// item represents one specific description of a project (Resume.emi.yml's
+// `project.descriptions`) rather than the whole project - see PickerItem's
+// own doc comment in ResumeCreator.tsx for why UniqueId is then that
+// description's own *target position's* uniqueId (descriptions have no
+// client-visible uniqueId of their own), not the description's.
 type resumeContentItem struct {
-	Kind     string `json:"kind"`
-	UniqueId string `json:"uniqueId"`
-	Label    string `json:"label"`
+	Kind      string `json:"kind"`
+	UniqueId  string `json:"uniqueId"`
+	Label     string `json:"label"`
+	ProjectId string `json:"projectId"`
+}
+
+// pickedProjectDescription bundles one picked description together with its
+// owning project - resolveContent below builds these by looking up the
+// project (preloaded, so Target/SkillsRow are populated - see
+// projectPreloadedDb in ResumeActions.go) and finding the description whose
+// own Target.UniqueId matches the pick's UniqueId.
+type pickedProjectDescription struct {
+	project     *resumedefs.ProjectEntity
+	description *resumedefs.ProjectEntityDescriptions
+}
+
+// experienceSection is one "Work Experience" entry in the rendered PDF,
+// together with every picked project description that belongs under it (in
+// the order they were picked) - see latexDocument's own Work Experience
+// section for how this actually renders. There is no longer a way to pick
+// a work experience directly (see ResumeCreator.tsx's own header comment on
+// why) - a section only exists here at all because at least one of its
+// projects' descriptions was picked.
+type experienceSection struct {
+	experience   *resumedefs.WorkExperienceEntity
+	descriptions []pickedProjectDescription
+}
+
+// resolveContent walks `items` (resume.content, in picked order) once,
+// resolving each into the entity/description data latexDocument actually
+// renders - the single place that interprets what a resumeContentItem
+// means, so latexDocument itself never has to know about `content`'s wire
+// shape at all.
+//
+// A "project" item without ProjectId is a plain whole-project pick,
+// rendered under "Projects" exactly as before. A "project" item *with*
+// ProjectId is one specific description - grouped into `experienceSections`
+// (ordered by each experience's first appearance among the picks) when its
+// project has an `experience` link, or collected into
+// `noExperienceDescriptions` (rendered as their own entries under
+// "Projects", appended after the plain projects) when it doesn't.
+func resolveContent(tx *gorm.DB, items []resumeContentItem) (
+	skills []*resumedefs.SkillEntity,
+	projects []*resumedefs.ProjectEntity,
+	experienceSections []*experienceSection,
+	noExperienceDescriptions []pickedProjectDescription,
+	certifications []*resumedefs.CertificationEntity,
+	languages []*resumedefs.LanguageEntity,
+) {
+	experienceSectionByID := map[string]*experienceSection{}
+
+	for _, item := range items {
+		switch item.Kind {
+		case "skill":
+			if s, err := resumedefs.SkillEntityActions.Get(tx, item.UniqueId); err == nil {
+				skills = append(skills, s)
+			}
+		case "project":
+			if item.ProjectId == "" {
+				if p, err := resumedefs.ProjectEntityActions.Get(tx, item.UniqueId); err == nil {
+					projects = append(projects, p)
+				}
+				continue
+			}
+			p, err := resumedefs.ProjectEntityActions.Get(projectPreloadedDb(), item.ProjectId)
+			if err != nil {
+				continue
+			}
+			var desc *resumedefs.ProjectEntityDescriptions
+			for _, d := range p.Descriptions {
+				if d.Target != nil && d.Target.UniqueId == item.UniqueId {
+					desc = d
+					break
+				}
+			}
+			if desc == nil {
+				continue
+			}
+			picked := pickedProjectDescription{project: p, description: desc}
+			if p.ExperienceId == 0 {
+				noExperienceDescriptions = append(noExperienceDescriptions, picked)
+				continue
+			}
+			section, ok := experienceSectionByID[p.Experience.UniqueId]
+			if !ok {
+				section = &experienceSection{experience: &p.Experience}
+				experienceSectionByID[p.Experience.UniqueId] = section
+				experienceSections = append(experienceSections, section)
+			}
+			section.descriptions = append(section.descriptions, picked)
+		case "certification":
+			if c, err := resumedefs.CertificationEntityActions.Get(tx, item.UniqueId); err == nil {
+				certifications = append(certifications, c)
+			}
+		case "language":
+			if l, err := resumedefs.LanguageEntityActions.Get(tx, item.UniqueId); err == nil {
+				languages = append(languages, l)
+			}
+		}
+	}
+
+	return
 }
 
 // parseResumeContent tolerates a nil/empty MJson (a resume with nothing
@@ -120,37 +239,10 @@ func ResumeToLatexAction(c resumedefs.ResumeToLatexActionRequest) (*resumedefs.R
 	}
 
 	items := parseResumeContent([]byte(entity.Content))
-	var skills []*resumedefs.SkillEntity
-	var projects []*resumedefs.ProjectEntity
-	var workExperiences []*resumedefs.WorkExperienceEntity
-	var certifications []*resumedefs.CertificationEntity
-	var languages []*resumedefs.LanguageEntity
-	for _, item := range items {
-		switch item.Kind {
-		case "skill":
-			if s, err := resumedefs.SkillEntityActions.Get(tx, item.UniqueId); err == nil {
-				skills = append(skills, s)
-			}
-		case "project":
-			if p, err := resumedefs.ProjectEntityActions.Get(tx, item.UniqueId); err == nil {
-				projects = append(projects, p)
-			}
-		case "workExperience":
-			if w, err := resumedefs.WorkExperienceEntityActions.Get(tx, item.UniqueId); err == nil {
-				workExperiences = append(workExperiences, w)
-			}
-		case "certification":
-			if c, err := resumedefs.CertificationEntityActions.Get(tx, item.UniqueId); err == nil {
-				certifications = append(certifications, c)
-			}
-		case "language":
-			if l, err := resumedefs.LanguageEntityActions.Get(tx, item.UniqueId); err == nil {
-				languages = append(languages, l)
-			}
-		}
-	}
+	skills, projects, experienceSections, noExperienceDescriptions, certifications, languages :=
+		resolveContent(tx, items)
 
-	source := latexDocument(entity, locale, skills, projects, workExperiences, certifications, languages)
+	source := latexDocument(entity, locale, skills, projects, experienceSections, noExperienceDescriptions, certifications, languages)
 
 	return &resumedefs.ResumeToLatexActionResponse{
 		Payload: fireback.GResponseSingleItem(resumedefs.ResumeLatexDto{Source: source}),
@@ -166,7 +258,8 @@ func latexDocument(
 	locale string,
 	skills []*resumedefs.SkillEntity,
 	projects []*resumedefs.ProjectEntity,
-	workExperiences []*resumedefs.WorkExperienceEntity,
+	experienceSections []*experienceSection,
+	noExperienceDescriptions []pickedProjectDescription,
 	certifications []*resumedefs.CertificationEntity,
 	languages []*resumedefs.LanguageEntity,
 ) string {
@@ -247,9 +340,18 @@ func latexDocument(
 		b.WriteString("\\section*{Summary}\n" + summary + "\n\n")
 	}
 
-	if len(workExperiences) > 0 {
+	// No longer a flat list of picked work experiences (see ResumeCreator.tsx's
+	// own header comment - work experience isn't a pickable kind at all
+	// anymore) - each section here exists only because at least one of its
+	// projects' descriptions was picked (see resolveContent), and what's
+	// rendered under its header is exactly those picked descriptions, not a
+	// flat achievements list - a work experience's own Achievements field is
+	// no longer shown here at all, superseded by the (per-project, per-
+	// target-position) description content picked for it instead.
+	if len(experienceSections) > 0 {
 		b.WriteString("\\section*{Work Experience}\n")
-		for _, w := range workExperiences {
+		for _, section := range experienceSections {
+			w := section.experience
 			line := "\\textbf{" + texLocale(w.JobTitle, locale) + "}"
 			if company := texLocale(w.Company, locale); company != "" {
 				line += " -- " + company
@@ -264,10 +366,20 @@ func latexDocument(
 			if loc := texLocale(w.Location, locale); loc != "" {
 				b.WriteString("\\textit{" + loc + "}\\\\\n")
 			}
-			if achievements := w.Achievements.OrDefault(nil); len(achievements) > 0 {
-				b.WriteString("\\begin{itemize}[leftmargin=*, itemsep=1pt, parsep=0pt, topsep=2pt]\n")
-				for _, a := range achievements {
-					b.WriteString("\\item " + tex(a) + "\n")
+			if len(section.descriptions) > 0 {
+				b.WriteString("\\begin{itemize}[leftmargin=*, itemsep=4pt, parsep=0pt, topsep=2pt]\n")
+				for _, picked := range section.descriptions {
+					target := picked.description.Target
+					line := "\\item \\textbf{" + tex(picked.project.Name) + "}"
+					if target != nil {
+						if role := texLocale(target.Name, locale); role != "" {
+							line += " -- " + role
+						}
+					}
+					b.WriteString(line + "\n")
+					if content := texLocale(picked.description.Content, locale); content != "" {
+						b.WriteString(content + "\\\\\n")
+					}
 				}
 				b.WriteString("\\end{itemize}\n")
 			}
@@ -291,7 +403,7 @@ func latexDocument(
 		b.WriteString("\\end{itemize}\n\n")
 	}
 
-	if len(projects) > 0 {
+	if len(projects) > 0 || len(noExperienceDescriptions) > 0 {
 		b.WriteString("\\section*{Projects}\n")
 		b.WriteString("\\begin{itemize}[leftmargin=*, itemsep=4pt, parsep=0pt]\n")
 		for _, p := range projects {
@@ -303,8 +415,28 @@ func latexDocument(
 			if summary := texLocale(p.Summary, locale); summary != "" {
 				b.WriteString(summary + "\\\\\n")
 			}
-			if len(p.Technologies.OrDefault(nil)) > 0 {
-				b.WriteString("\\textit{" + tex(strings.Join(p.Technologies.OrDefault(nil), ", ")) + "}\\\\\n")
+			// Technologies (a \textit{...} line under each project) is gone -
+			// Resume.emi.yml dropped project.technologies in favor of the new
+			// experience/descriptions relation fields (see
+			// ResumeActions.go's projectDtoFromEntity doc comment). Nothing
+			// in p replaces it yet.
+		}
+		// Picked project descriptions whose own project has no `experience`
+		// link (so there's no Work Experience section to nest them under -
+		// see resolveContent) - rendered here instead, the same shape as a
+		// plain project entry above (project name + the picked description's
+		// own content), appended after the plain projects in picked order.
+		for _, picked := range noExperienceDescriptions {
+			target := picked.description.Target
+			line := "\\item \\textbf{" + tex(picked.project.Name) + "}"
+			if target != nil {
+				if role := texLocale(target.Name, locale); role != "" {
+					line += " -- " + role
+				}
+			}
+			b.WriteString(line + "\n")
+			if content := texLocale(picked.description.Content, locale); content != "" {
+				b.WriteString(content + "\\\\\n")
 			}
 		}
 		b.WriteString("\\end{itemize}\n\n")

@@ -26,7 +26,6 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import {
   Award,
   Briefcase,
-  Building2,
   GripVertical,
   Languages as LanguagesIcon,
   Plus,
@@ -39,18 +38,31 @@ import { useLocale } from "@fireback/ui-core/hooks/useLocale";
 import { getTStringValue, type TString as TStringValue } from "@fireback/ui-core/types/TString";
 import { useSkillBrowseActionQuery } from "@/modules/resume/sdk/SkillBrowseAction";
 import { useProjectBrowseActionQuery } from "@/modules/resume/sdk/ProjectBrowseAction";
-import { useWorkExperienceBrowseActionQuery } from "@/modules/resume/sdk/WorkExperienceBrowseAction";
 import { useCertificationBrowseActionQuery } from "@/modules/resume/sdk/CertificationBrowseAction";
 import { useLanguageBrowseActionQuery } from "@/modules/resume/sdk/LanguageBrowseAction";
 
 // ResumeCreator - a two-pane picker for assembling one resume's worth of
-// content - work experience, skills, projects, certifications, languages -
-// out of everything you've ever recorded (see each entity's own browse
-// action; none of them are scoped to any one Resume, so this is a manual
-// curation step rather than a query-driven one). What ends up in `selected`
-// here is exactly what ResumeToLatexImplementation.go's own
-// ResumeToLatexAction renders into the PDF, section by section, in this
-// same order - see that file's own header comment.
+// content - skills, projects, certifications, languages - out of everything
+// you've ever recorded (see each entity's own browse action; none of them
+// are scoped to any one Resume, so this is a manual curation step rather
+// than a query-driven one). What ends up in `selected` here is exactly what
+// ResumeToLatexImplementation.go's own ResumeToLatexAction renders into the
+// PDF, section by section, in this same order - see that file's own header
+// comment.
+//
+// Work experience is deliberately NOT one of the pickable kinds below -
+// there's nothing to drag in for it. A project's own `experience` link
+// (Resume.emi.yml's `project.experience`, a `one?` to WorkExperienceEntity)
+// decides that automatically: picking one of that project's descriptions
+// (see PickerItem.projectId's own doc comment) is what actually puts a
+// "Work Experience" section in the PDF at all, with that description
+// nested underneath it - ResumeToLatexImplementation.go groups by the
+// picked descriptions' own project.experience, not by a separate
+// work-experience pick. This used to offer work experience as its own
+// draggable kind (rendered flatly, unrelated to any project), which could
+// never actually reflect that a project belongs under a specific role -
+// picking descriptions instead means the PDF's structure follows the data
+// model instead of two independent, easy-to-desync picks.
 //
 // Right pane lists every row of each kind (unfiltered browse - no qs means
 // no LIMIT is applied server-side, see emigorm.ApplyQueryPage, so this
@@ -70,22 +82,15 @@ import { useLanguageBrowseActionQuery } from "@/modules/resume/sdk/LanguageBrows
 // attributes/listeners-on-a-grip-icon convention) rather than a new
 // library - one of the most widely used React DnD toolkits, and already
 // proven out elsewhere in this app.
-type ItemKind = "skill" | "project" | "workExperience" | "certification" | "language";
+type ItemKind = "skill" | "project" | "certification" | "language";
 
 // Every kind offered by the picker, in the order they're rendered as groups
 // in the library pane below - also doubles as the single source of truth
 // pool-lookups (findAvailable, addChecked, ...) iterate over instead of
 // hand-listing each pool at every call site.
-const ITEM_KINDS: ItemKind[] = [
-  "workExperience",
-  "skill",
-  "project",
-  "certification",
-  "language",
-];
+const ITEM_KINDS: ItemKind[] = ["skill", "project", "certification", "language"];
 
 const GROUP_TITLES: Record<ItemKind, string> = {
-  workExperience: "Work Experience",
   skill: "Skills",
   project: "Projects",
   certification: "Certifications & Licenses",
@@ -94,8 +99,46 @@ const GROUP_TITLES: Record<ItemKind, string> = {
 
 export interface PickerItem {
   kind: ItemKind;
+  /** For a plain kind "project" pick (a project with no descriptions of its
+   * own yet), the project's own uniqueId - same as every other kind. For a
+   * "project" pick that represents one specific description (see
+   * `projectId` below), this is that description's own *target position's*
+   * uniqueId instead - descriptions have no client-visible uniqueId of
+   * their own (Resume.emi.yml's `descriptions` array items get one on the
+   * OptionalDto used for Create/Update, but not on the plain Dto Browse/Get
+   * actually return - see ResumeActions.go's projectDtoFromEntity), and
+   * `descriptions.target` is a required (`type: one`, not `one?`) relation,
+   * so every real description has exactly one target position to key off
+   * of instead. Combined with `projectId` (not `uniqueId` alone) for
+   * identity everywhere below (itemKey/toDomId/sameItem), since the same
+   * target position could in principle be the target of a description on
+   * more than one project.
+   */
   uniqueId: string;
   label: string;
+  /** Set only when this "project" pick represents one specific description
+   * of a project (Resume.emi.yml's `project.descriptions`) rather than the
+   * whole project - the project's own uniqueId. ResumeToLatexImplementation.go
+   * uses this to look the description back up (by project + target
+   * position) and automatically nests it under whichever "Work Experience"
+   * section that project's own `experience` link resolves to (or under
+   * "Projects", ungrouped, if the project has none) - see this file's own
+   * header comment on why work experience itself isn't a pickable kind at
+   * all anymore. */
+  projectId?: string;
+}
+
+// Identity comparison for everything below that used to just compare
+// `kind`+`uniqueId` - a plain project pick's uniqueId is the project's own,
+// but a project-description pick's uniqueId is its target position's (see
+// PickerItem's own doc comment), which by itself doesn't rule out the same
+// target position being used by two different projects' own descriptions.
+// `projectId` (present only for the latter) has to match too.
+function sameItem(
+  a: Pick<PickerItem, "kind" | "uniqueId" | "projectId">,
+  b: Pick<PickerItem, "kind" | "uniqueId" | "projectId">,
+): boolean {
+  return a.kind === b.kind && a.uniqueId === b.uniqueId && (a.projectId ?? "") === (b.projectId ?? "");
 }
 
 // jobTitle/company/name/etc are `complex: TString` server-side (a
@@ -149,22 +192,31 @@ function safeLabel(v: unknown): string {
 
 // Draggable/sortable ids need to be globally unique across both panes and
 // carry enough information for handleDragEnd to act without a lookup table -
-// "<list>:<kind>:<uniqueId>" does both. `list` tells the drop handler which
-// pane a drag started/landed in; `kind`+`uniqueId` identify the item itself.
-// uniqueId is always a plain uuid (see every generated *Entity's own
-// UniqueId column default, gen_random_uuid()) so it never itself contains
-// a ":" - safe to split on.
-function toDomId(list: "avail" | "sel", item: Pick<PickerItem, "kind" | "uniqueId">) {
-  return `${list}:${item.kind}:${item.uniqueId}`;
+// "<list>:<kind>:<uniqueId>:<projectId>" does both. `list` tells the drop
+// handler which pane a drag started/landed in; `kind`+`uniqueId`+`projectId`
+// identify the item itself (see sameItem's own doc comment on why
+// `projectId` has to be part of identity too, not just `uniqueId`).
+// `projectId` is always trailing/optional (empty segment when absent) so
+// this only ever splits into exactly 4 parts. uniqueId/projectId are always
+// plain uuids (see every generated *Entity's own UniqueId column default,
+// gen_random_uuid()) so neither ever itself contains a ":" - safe to split
+// on.
+function toDomId(list: "avail" | "sel", item: Pick<PickerItem, "kind" | "uniqueId" | "projectId">) {
+  return `${list}:${item.kind}:${item.uniqueId}:${item.projectId ?? ""}`;
 }
 
 function fromDomId(id: string) {
-  const [list, kind, uniqueId] = id.split(":");
-  return { list: list as "avail" | "sel", kind: kind as ItemKind, uniqueId };
+  const [list, kind, uniqueId, projectId] = id.split(":");
+  return {
+    list: list as "avail" | "sel",
+    kind: kind as ItemKind,
+    uniqueId,
+    projectId: projectId || undefined,
+  };
 }
 
-function itemKey(item: Pick<PickerItem, "kind" | "uniqueId">) {
-  return `${item.kind}:${item.uniqueId}`;
+function itemKey(item: Pick<PickerItem, "kind" | "uniqueId" | "projectId">) {
+  return `${item.kind}:${item.uniqueId}:${item.projectId ?? ""}`;
 }
 
 const DROP_ZONE_ID = "resume-creator-drop-zone";
@@ -187,7 +239,6 @@ const collisionDetection: CollisionDetection = (args) => {
 const ITEM_ICONS: Record<ItemKind, typeof Sparkles> = {
   skill: Sparkles,
   project: Briefcase,
-  workExperience: Building2,
   certification: Award,
   language: LanguagesIcon,
 };
@@ -384,7 +435,6 @@ export function ResumeCreatorPicker({
   // ArchiveScreen's own paged/cursor browsing).
   const skillsQuery = useSkillBrowseActionQuery({});
   const projectsQuery = useProjectBrowseActionQuery({});
-  const workExperiencesQuery = useWorkExperienceBrowseActionQuery({});
   const certificationsQuery = useCertificationBrowseActionQuery({});
   const languagesQuery = useLanguageBrowseActionQuery({});
 
@@ -397,28 +447,50 @@ export function ResumeCreatorPicker({
       })),
     [skillsQuery.data],
   );
-  const availableProjects: PickerItem[] = useMemo(
-    () =>
-      (projectsQuery.data?.data?.items ?? []).map((p: any) => ({
-        kind: "project" as const,
-        uniqueId: p.uniqueId,
-        label: safeLabel(p.name),
-      })),
-    [projectsQuery.data],
-  );
-  const availableWorkExperiences: PickerItem[] = useMemo(
-    () =>
-      (workExperiencesQuery.data?.data?.items ?? []).map((w: any) => {
-        const jobTitle = pickLocale(w.jobTitle, locale);
-        const company = pickLocale(w.company, locale);
-        return {
-          kind: "workExperience" as const,
-          uniqueId: w.uniqueId,
-          label: company ? `${jobTitle} – ${company}` : jobTitle,
-        };
-      }),
-    [workExperiencesQuery.data, locale],
-  );
+  // One pickable card per project, *unless* it has descriptions of its own
+  // (Resume.emi.yml's `project.descriptions`, one per target position - see
+  // ProjectDescriptionsTabs.tsx) - then it's one card per description
+  // instead, each labeled "<project> — <target position>" and carrying
+  // `projectId` (see PickerItem's own doc comment on both fields). A
+  // project with no descriptions yet still gets its old plain whole-project
+  // card, so this stays useful for every project already recorded before
+  // this per-description picking existed.
+  //
+  // `descriptions`/`target` are MArray/MOne (see
+  // @fireback/js-remote-ctx/common/operators.ts) off the generated
+  // ProjectOptionalDto useProjectBrowseActionQuery's default creatorFn
+  // constructs - `.get()` unwraps either, tolerating an already-plain
+  // value too (defensive - nothing here actually hands one that shape, but
+  // matches ProjectSingleScreenExtra.tsx's own unwrap convention).
+  const availableProjects: PickerItem[] = useMemo(() => {
+    function unwrap<T>(value: unknown): T | undefined {
+      if (value && typeof (value as any).get === "function") {
+        return (value as any).get();
+      }
+      return value as T | undefined;
+    }
+
+    const items: PickerItem[] = [];
+    for (const p of projectsQuery.data?.data?.items ?? []) {
+      const descriptions = unwrap<any[]>((p as any).descriptions) ?? [];
+      if (descriptions.length === 0) {
+        items.push({ kind: "project", uniqueId: (p as any).uniqueId, label: safeLabel((p as any).name) });
+        continue;
+      }
+      descriptions.forEach((d: any, index: number) => {
+        const target = unwrap<any>(d.target);
+        const targetLabel = target ? pickLocale(target.name, locale) : `Description ${index + 1}`;
+        if (!target?.uniqueId) return; // see PickerItem.uniqueId's own doc comment - nothing to key this pick off of without a target.
+        items.push({
+          kind: "project",
+          uniqueId: target.uniqueId,
+          projectId: (p as any).uniqueId,
+          label: `${safeLabel((p as any).name)} — ${targetLabel}`,
+        });
+      });
+    }
+    return items;
+  }, [projectsQuery.data, locale]);
   const availableCertifications: PickerItem[] = useMemo(
     () =>
       (certificationsQuery.data?.data?.items ?? []).map((c: any) => ({
@@ -439,11 +511,10 @@ export function ResumeCreatorPicker({
   );
 
   // One lookup table keyed by kind, so findAvailable/addChecked/the render
-  // below don't each need their own hand-listed switch over all 5 pools.
+  // below don't each need their own hand-listed switch over all 4 pools.
   const availableByKind: Record<ItemKind, PickerItem[]> = {
     skill: availableSkills,
     project: availableProjects,
-    workExperience: availableWorkExperiences,
     certification: availableCertifications,
     language: availableLanguages,
   };
@@ -478,7 +549,7 @@ export function ResumeCreatorPicker({
   // query has data, silently repairing any drift the next time this modal
   // opens - a stale/wrong label heals itself instead of staying wrong until
   // someone notices and manually removes/re-adds the card. Deliberately
-  // depends on the 5 memoized available* arrays (not `selected` itself, and
+  // depends on the 4 memoized available* arrays (not `selected` itself, and
   // not the `availableByKind` object above, which is a fresh reference every
   // render) - re-running only when a browse query's data actually changes
   // keeps this from looping against its own setSelected call below.
@@ -486,14 +557,13 @@ export function ResumeCreatorPicker({
     const pools: Record<ItemKind, PickerItem[]> = {
       skill: availableSkills,
       project: availableProjects,
-      workExperience: availableWorkExperiences,
       certification: availableCertifications,
       language: availableLanguages,
     };
     setSelected((prev) => {
       let changed = false;
       const next = prev.map((item) => {
-        const live = pools[item.kind].find((i) => i.uniqueId === item.uniqueId);
+        const live = pools[item.kind].find((i) => sameItem(i, item));
         if (live && live.label && live.label !== item.label) {
           changed = true;
           return { ...item, label: live.label };
@@ -503,13 +573,7 @@ export function ResumeCreatorPicker({
       return changed ? next : prev;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    availableSkills,
-    availableProjects,
-    availableWorkExperiences,
-    availableCertifications,
-    availableLanguages,
-  ]);
+  }, [availableSkills, availableProjects, availableCertifications, availableLanguages]);
 
   const [activeItem, setActiveItem] = useState<PickerItem | null>(null);
 
@@ -531,11 +595,7 @@ export function ResumeCreatorPicker({
   // inserting at a hovered position (there's no drop position to honor
   // here).
   function addItem(item: PickerItem) {
-    setSelected((prev) =>
-      prev.some((i) => i.kind === item.kind && i.uniqueId === item.uniqueId)
-        ? prev
-        : [...prev, item],
-    );
+    setSelected((prev) => (prev.some((i) => sameItem(i, item)) ? prev : [...prev, item]));
     setCheckedKeys((prev) => {
       if (!prev.has(itemKey(item))) return prev;
       const next = new Set(prev);
@@ -573,16 +633,22 @@ export function ResumeCreatorPicker({
     setCheckedKeys(new Set());
   }
 
-  function findAvailable(kind: ItemKind, uniqueId: string): PickerItem | undefined {
-    return availableByKind[kind].find((i) => i.uniqueId === uniqueId);
+  function findAvailable(
+    kind: ItemKind,
+    uniqueId: string,
+    projectId: string | undefined,
+  ): PickerItem | undefined {
+    return availableByKind[kind].find(
+      (i) => i.uniqueId === uniqueId && (i.projectId ?? "") === (projectId ?? ""),
+    );
   }
 
   function handleDragStart(event: DragStartEvent) {
-    const { list, kind, uniqueId } = fromDomId(String(event.active.id));
+    const { list, kind, uniqueId, projectId } = fromDomId(String(event.active.id));
     const item =
       list === "avail"
-        ? findAvailable(kind, uniqueId)
-        : selected.find((i) => i.kind === kind && i.uniqueId === uniqueId);
+        ? findAvailable(kind, uniqueId, projectId)
+        : selected.find((i) => sameItem(i, { kind, uniqueId, projectId }));
     setActiveItem(item ?? null);
   }
 
@@ -598,17 +664,15 @@ export function ResumeCreatorPicker({
       // background, or on top of an existing selected card) adds it - see
       // this file's own header comment on why order-of-drop-target doesn't
       // matter here, only "landed inside the left pane at all".
-      if (selectedKeys.has(`${activeInfo.kind}:${activeInfo.uniqueId}`)) return;
-      const item = findAvailable(activeInfo.kind, activeInfo.uniqueId);
+      if (selectedKeys.has(itemKey(activeInfo))) return;
+      const item = findAvailable(activeInfo.kind, activeInfo.uniqueId, activeInfo.projectId);
       if (!item) return;
 
       const overInfo =
         String(over.id) === DROP_ZONE_ID ? null : fromDomId(String(over.id));
       setSelected((prev) => {
         if (!overInfo) return [...prev, item];
-        const overIndex = prev.findIndex(
-          (i) => i.kind === overInfo.kind && i.uniqueId === overInfo.uniqueId,
-        );
+        const overIndex = prev.findIndex((i) => sameItem(i, overInfo));
         if (overIndex === -1) return [...prev, item];
         return [...prev.slice(0, overIndex), item, ...prev.slice(overIndex)];
       });
@@ -624,21 +688,15 @@ export function ResumeCreatorPicker({
     if (overInfo.list !== "sel") return;
 
     setSelected((prev) => {
-      const oldIndex = prev.findIndex(
-        (i) => i.kind === activeInfo.kind && i.uniqueId === activeInfo.uniqueId,
-      );
-      const newIndex = prev.findIndex(
-        (i) => i.kind === overInfo.kind && i.uniqueId === overInfo.uniqueId,
-      );
+      const oldIndex = prev.findIndex((i) => sameItem(i, activeInfo));
+      const newIndex = prev.findIndex((i) => sameItem(i, overInfo));
       if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return prev;
       return arrayMove(prev, oldIndex, newIndex);
     });
   }
 
   function removeSelected(item: PickerItem) {
-    setSelected((prev) =>
-      prev.filter((i) => !(i.kind === item.kind && i.uniqueId === item.uniqueId)),
-    );
+    setSelected((prev) => prev.filter((i) => !sameItem(i, item)));
   }
 
   // Search only ever narrows the library pane - it has no effect on what's
@@ -660,7 +718,6 @@ export function ResumeCreatorPicker({
   const loading =
     skillsQuery.isLoading ||
     projectsQuery.isLoading ||
-    workExperiencesQuery.isLoading ||
     certificationsQuery.isLoading ||
     languagesQuery.isLoading;
 

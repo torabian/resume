@@ -204,8 +204,6 @@ entities:
       - name: location
         type: complex?
         complex: TString
-      - name: remote
-        type: bool?
       - name: startDate
         type: complex
         complex: XDate
@@ -286,7 +284,28 @@ entities:
     description: A portfolio/side/work project entry, linked to a Resume.
     fields:
 
-      # A project's own name - proper noun, not translated.
+      - name: experience
+        target: WorkExperienceEntity
+        type: one?
+        description: 
+          The work experience that this project is done based on that.
+      
+      - name: descriptions
+        type: array
+        description: 
+          The project description, based on the target profile.
+          So you can emphesize more on backend or front-end part of the project.
+        fields:
+          - name: target
+            type: one
+            target: TargetPositionEntity
+          - name: content
+            type: complex
+            complex: TString
+          - name: skills
+            type: collection?
+            target: SkillEntity
+
       - name: name
         type: string
       - name: role
@@ -301,18 +320,11 @@ entities:
       - name: endDate
         type: complex?
         complex: XDate
-      - name: isOngoing
-        type: bool?
       - name: url
         type: string?
       - name: repoUrl
         type: string?
-      - name: technologies
-        type: slice?
-        primitive: string
-      - name: highlights
-        type: slice?
-        primitive: string
+
 
   - name: certification
     description: A certification/license entry, linked to a Resume.

@@ -7,6 +7,7 @@ import React, { useContext } from "react";
 import { BUILD_VARIABLES } from "../../hooks/build-variables";
 import { detectDeviceType } from "../../hooks/deviceInformation";
 import { useRemoteMenuResolver } from "../../hooks/useRemoteMenuResolver";
+import { useFrontendMenuItems } from "../../hooks/frontendMenuRegistry";
 import { useSortableOrder } from "../../hooks/useSortableOrder";
 import { osResources } from "../../hooks/resources";
 import type { AppMenuOptionalDto } from "@fireback/ui-core/sdk/interfacetools/AppMenuOptionalDto";
@@ -108,6 +109,11 @@ function Sidebar({
     sidebarItemSelected,
   } = useUiState();
   const menu = useRemoteMenuResolver("sidebar");
+  // Menu groups any frontend module has registered for itself via
+  // useMenu("sidebar", ...) - see frontendMenuRegistry.tsx. Purely
+  // client-side, independent of the backend's /cte-app-menus data above, so
+  // a module never needs a backend seeder just to show up here.
+  const frontendMenu = useFrontendMenuItems("sidebar");
   const s = useS(strings);
 
   const { reset } = useContext(ReactiveSearchContext);
@@ -127,6 +133,7 @@ function Sidebar({
   } else if ((menu as any).children?.length) {
     menus.push(menu);
   }
+  menus = [...menus, ...frontendMenu];
 
   // Rendered on its own, fixed above the sortable groups below (see the
   // return statement) rather than folded into `menus` - the workspace
