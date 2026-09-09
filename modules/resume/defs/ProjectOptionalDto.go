@@ -25,10 +25,10 @@ type ProjectOptionalDto struct {
 
 // The base class definition for descriptions
 type ProjectOptionalDtoDescriptions struct {
-	UniqueId emigo.Nullable[string]               `json:"uniqueId" yaml:"uniqueId"`
-	Target   emigo.OneNullable[TargetPositionDto] `json:"target" yaml:"target"`
-	Content  complexes.TString                    `json:"content" yaml:"content"`
-	Skills   emigo.CollectionNullable[SkillDto]   `json:"skills" yaml:"skills"`
+	UniqueId emigo.Nullable[string]                      `json:"uniqueId" yaml:"uniqueId"`
+	Target   emigo.CollectionNullable[TargetPositionDto] `json:"target" yaml:"target"`
+	Content  complexes.TString                           `json:"content" yaml:"content"`
+	Skills   emigo.CollectionNullable[SkillDto]          `json:"skills" yaml:"skills"`
 }
 
 func (x *ProjectOptionalDto) Json() string {
@@ -134,7 +134,7 @@ func GetProjectOptionalDtoDescriptionsCliFlags(prefix string) []emigo.CliFlag {
 		},
 		{
 			Name: prefix + "target",
-			Type: "one?",
+			Type: "collection?",
 		},
 		{
 			Name: prefix + "content",
@@ -152,7 +152,7 @@ func CastProjectOptionalDtoDescriptionsFromCli(c emigo.CliCastable) ProjectOptio
 		emigo.ParseNullable(c.String("unique-id"), &data.UniqueId)
 	}
 	if c.IsSet("target") {
-		data.Target = emigo.CapturePossibleOneNullable(CastTargetPositionDtoFromCli, "target", c)
+		data.Target = emigo.CapturePossibleCollectionNullable(CastTargetPositionDtoFromCli, "target", c)
 	}
 	if c.IsSet("content") {
 		if u, ok := any(&data.Content).(encoding.TextUnmarshaler); ok {

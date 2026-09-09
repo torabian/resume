@@ -156,15 +156,17 @@ func skillDtoFromEntity(e *resumedefs.SkillEntity) resumedefs.SkillDto {
 
 // projectDtoFromEntity populates Experience/Descriptions from e's *preloaded*
 // relations - ProjectGetAction/ProjectUpdateAction/ProjectBrowseAction below
-// all chain .Preload("Experience")/.Preload("Descriptions.Target")/
+// all chain .Preload("Experience")/.Preload("Descriptions.TargetRow")/
 // .Preload("Descriptions.SkillsRow") onto the tx they pass in before calling
 // the generated resumedefs.ProjectEntityActions.*, specifically so
-// e.Experience/e.Descriptions/e.Descriptions[i].Target/SkillsRow are never
-// left at their zero value here. Without that preload, e.ExperienceId (and
-// each description's TargetId) is still a real, correctly-persisted FK - the
-// column write always worked - but e.Experience itself silently stays a
-// zero-valued WorkExperienceEntity, so it round-tripped back through the API
-// as "experience": null even right after a successful select.
+// e.Experience/e.Descriptions/e.Descriptions[i].TargetRow/SkillsRow are
+// never left at their zero value here. Without that preload, e.ExperienceId
+// is still a real, correctly-persisted FK - the column write always worked
+// - but e.Experience itself silently stays a zero-valued WorkExperienceEntity,
+// so it round-tripped back through the API as "experience": null even right
+// after a successful select. Each description's target positions now live
+// in a `project_target` many2many join table (TargetRow), not a single FK
+// column.
 func projectDtoFromEntity(e *resumedefs.ProjectEntity) resumedefs.ProjectDto {
 	dto := resumedefs.ProjectDto{
 		UniqueId:  emigo.NullableOf(e.UniqueId),
@@ -186,8 +188,12 @@ func projectDtoFromEntity(e *resumedefs.ProjectEntity) resumedefs.ProjectDto {
 		item := resumedefs.ProjectDtoDescriptions{
 			Content: d.Content,
 		}
-		if d.Target != nil {
-			item.Target = emigo.NewOneNullable(targetPositionDtoFromEntity(d.Target))
+		if len(d.TargetRow) > 0 {
+			targets := make([]resumedefs.TargetPositionDto, len(d.TargetRow))
+			for j, t := range d.TargetRow {
+				targets[j] = targetPositionDtoFromEntity(t)
+			}
+			item.Target = emigo.CollectionNullableReplace(targets)
 		}
 		if len(d.SkillsRow) > 0 {
 			skills := make([]resumedefs.SkillDto, len(d.SkillsRow))
@@ -784,21 +790,21 @@ func ProjectCreateAction(c resumedefs.ProjectCreateActionRequest) (*resumedefs.P
 // tx.Transaction(...) internally runs further queries against *other*
 // model types on that same session while resolving relations - e.g.
 // emigorm.ReconcileOne[WorkExperienceEntity] for `experience`,
-// emigorm.ReconcileOne[TargetPositionEntity] per description's `target` -
-// and a gorm session's accumulated Preload paths apply indiscriminately to
-// every query run through it, not just the one that actually has that
-// relation. Passing this into Update surfaced as "Descriptions: unsupported
-// relations for schema WorkExperienceEntity" the moment `experience` was
-// set: WorkExperienceEntity has no `Descriptions` field for
-// Preload("Descriptions.Target") to resolve against, so gorm's schema
-// parser rejected the query outright, taking down the *whole* update mid-
-// transaction, not just the relation being resolved. ProjectUpdateAction
+// emigorm.ReconcileManyToMany[TargetPositionEntity] per description's
+// `target` - and a gorm session's accumulated Preload paths apply
+// indiscriminately to every query run through it, not just the one that
+// actually has that relation. Passing this into Update surfaced as
+// "Descriptions: unsupported relations for schema WorkExperienceEntity" the
+// moment `experience` was set: WorkExperienceEntity has no `Descriptions`
+// field for Preload("Descriptions.TargetRow") to resolve against, so gorm's
+// schema parser rejected the query outright, taking down the *whole* update
+// mid-transaction, not just the relation being resolved. ProjectUpdateAction
 // below instead re-fetches (with these preloads) via a separate Get call,
 // after Update's own transaction has already committed and closed.
 func projectPreloadedDb() *gorm.DB {
 	return fireback.GetDbRef().
 		Preload("Experience").
-		Preload("Descriptions.Target").
+		Preload("Descriptions.TargetRow").
 		Preload("Descriptions.SkillsRow")
 }
 

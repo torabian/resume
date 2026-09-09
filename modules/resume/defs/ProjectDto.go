@@ -25,9 +25,9 @@ type ProjectDto struct {
 
 // The base class definition for descriptions
 type ProjectDtoDescriptions struct {
-	Target  emigo.OneNullable[TargetPositionDto] `json:"target" yaml:"target"`
-	Content complexes.TString                    `json:"content" yaml:"content"`
-	Skills  emigo.CollectionNullable[SkillDto]   `json:"skills" yaml:"skills"`
+	Target  emigo.CollectionNullable[TargetPositionDto] `json:"target" yaml:"target"`
+	Content complexes.TString                           `json:"content" yaml:"content"`
+	Skills  emigo.CollectionNullable[SkillDto]          `json:"skills" yaml:"skills"`
 }
 
 func (x *ProjectDto) Json() string {
@@ -129,7 +129,7 @@ func GetProjectDtoDescriptionsCliFlags(prefix string) []emigo.CliFlag {
 	return []emigo.CliFlag{
 		{
 			Name: prefix + "target",
-			Type: "one?",
+			Type: "collection?",
 		},
 		{
 			Name: prefix + "content",
@@ -144,7 +144,7 @@ func GetProjectDtoDescriptionsCliFlags(prefix string) []emigo.CliFlag {
 func CastProjectDtoDescriptionsFromCli(c emigo.CliCastable) ProjectDtoDescriptions {
 	data := ProjectDtoDescriptions{}
 	if c.IsSet("target") {
-		data.Target = emigo.CapturePossibleOneNullable(CastTargetPositionDtoFromCli, "target", c)
+		data.Target = emigo.CapturePossibleCollectionNullable(CastTargetPositionDtoFromCli, "target", c)
 	}
 	if c.IsSet("content") {
 		if u, ok := any(&data.Content).(encoding.TextUnmarshaler); ok {

@@ -145,8 +145,13 @@ func resolveContent(tx *gorm.DB, items []resumeContentItem) (
 			}
 			var desc *resumedefs.ProjectEntityDescriptions
 			for _, d := range p.Descriptions {
-				if d.Target != nil && d.Target.UniqueId == item.UniqueId {
-					desc = d
+				for _, t := range d.TargetRow {
+					if t.UniqueId == item.UniqueId {
+						desc = d
+						break
+					}
+				}
+				if desc != nil {
 					break
 				}
 			}
@@ -224,6 +229,21 @@ func tex(s string) string {
 // complexes.TString.Get's own doc comment.
 func texLocale(t interface{ Get(string) string }, locale string) string {
 	return tex(t.Get(locale))
+}
+
+// targetRowLabel renders a description's picked target positions
+// (Resume.emi.yml's `project.descriptions.target` is now a collection, so a
+// description can match more than one) as a single comma-joined string,
+// e.g. "Backend Developer, Fullstack Developer". Empty target names are
+// dropped rather than leaving a stray ", " in the joined result.
+func targetRowLabel(rows []*resumedefs.TargetPositionEntity, locale string) string {
+	var labels []string
+	for _, t := range rows {
+		if name := texLocale(t.Name, locale); name != "" {
+			labels = append(labels, name)
+		}
+	}
+	return strings.Join(labels, ", ")
 }
 
 func ResumeToLatexAction(c resumedefs.ResumeToLatexActionRequest) (*resumedefs.ResumeToLatexActionResponse, error) {
@@ -369,12 +389,9 @@ func latexDocument(
 			if len(section.descriptions) > 0 {
 				b.WriteString("\\begin{itemize}[leftmargin=*, itemsep=4pt, parsep=0pt, topsep=2pt]\n")
 				for _, picked := range section.descriptions {
-					target := picked.description.Target
-					line := "\\item \\textbf{" + tex(picked.project.Name) + "}"
-					if target != nil {
-						if role := texLocale(target.Name, locale); role != "" {
-							line += " -- " + role
-						}
+line := "\\item \\textbf{" + tex(picked.project.Name) + "}"
+					if role := targetRowLabel(picked.description.TargetRow, locale); role != "" {
+						line += " -- " + role
 					}
 					b.WriteString(line + "\n")
 					if content := texLocale(picked.description.Content, locale); content != "" {
@@ -427,12 +444,9 @@ func latexDocument(
 		// plain project entry above (project name + the picked description's
 		// own content), appended after the plain projects in picked order.
 		for _, picked := range noExperienceDescriptions {
-			target := picked.description.Target
 			line := "\\item \\textbf{" + tex(picked.project.Name) + "}"
-			if target != nil {
-				if role := texLocale(target.Name, locale); role != "" {
-					line += " -- " + role
-				}
+			if role := targetRowLabel(picked.description.TargetRow, locale); role != "" {
+				line += " -- " + role
 			}
 			b.WriteString(line + "\n")
 			if content := texLocale(picked.description.Content, locale); content != "" {

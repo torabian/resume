@@ -423,57 +423,64 @@ export class ProjectOptionalDto {
     }
     /**
      *
-     * @type {TargetPositionDto}
+     * @type {TargetPositionDto[]}
      **/
-    #target?: MOne<TargetPositionDto> | null | undefined = undefined;
+    #target?: MCollection<TargetPositionDto> | null | undefined = undefined;
     /**
      *
-     * @returns {TargetPositionDto}
+     * @returns {TargetPositionDto[]}
      **/
     get target() {
       return this.#target;
     }
     /**
      *
-     * @type {TargetPositionDto}
+     * @type {TargetPositionDto[]}
      **/
     set target(
       value:
-        | MOne<TargetPositionDto>
-        | null
-        | undefined
-        | InstanceType<typeof TargetPositionDto>
+        | MCollection<TargetPositionDto>
+        | InstanceType<typeof TargetPositionDto>[]
         | null
         | undefined,
     ) {
-      // For a nullable relation, a literal null is a deliberate "clear"
-      // signal and has to stay null - not fall through to the else branch
-      // below and become MOne.of(new TargetPositionDto(null)) (the
-      // constructor tolerates a null/undefined argument by returning an
-      // empty-but-non-null instance), which serializes as an empty object
-      // instead of null. The backend tells "explicitly cleared" apart from
-      // "field left untouched" (an absent key) only by seeing a real null
-      // on the wire, the same way every other nullable field here (array?,
-      // collection?) already short-circuits on null/undefined above.
+      // For nullable collection, we allow explicit undefined or null values
       if (value === null || value === undefined) {
         this.#target = value === null ? null : undefined;
         return;
       }
-      // For objects, the sub type needs to always be instance of the sub class.
-      if (value instanceof MOne) {
-        this.#target = value;
-      } else if (value instanceof TargetPositionDto) {
-        this.#target = MOne.of(value);
-      } else {
-        this.#target = MOne.of(new TargetPositionDto(value));
+      // When the passed value is already an array, we check if we need to
+      // cast the inner items into class instance.
+      if (Array.isArray(value)) {
+        if (value.length > 0 && value[0] instanceof TargetPositionDto) {
+          this.#target = MCollection.of(value);
+        } else {
+          this.#target = MCollection.of(
+            value.map((item) => new TargetPositionDto(item)),
+          );
+        }
+        return;
       }
+      // If the instance is already an MCollection, we assume it's all good.
+      if (value instanceof MCollection) {
+        this.#target = value;
+        return;
+      }
+      // If the value is not array, and is not a MCollection, we need to be consider,
+      // it might be eligible to be casted into MCollection.
+      const { ok, value: mcastValue } = MCollection.cast<unknown>(value);
+      if (ok) {
+        this.#target = mcastValue as any;
+        return;
+      }
+      console.warn(
+        "Cannot assing value to target, because it needs MCollection instance or an Array.",
+      );
     }
     setTarget(
       value:
-        | MOne<TargetPositionDto>
-        | null
-        | undefined
-        | InstanceType<typeof TargetPositionDto>
+        | MCollection<TargetPositionDto>
+        | InstanceType<typeof TargetPositionDto>[]
         | null
         | undefined,
     ) {
@@ -640,7 +647,10 @@ export class ProjectOptionalDto {
     static get Fields() {
       return {
         uniqueId: "uniqueId",
-        target: "target",
+        target$: "target",
+        get target() {
+          return withPrefix("descriptions.target", TargetPositionDto.Fields);
+        },
         content: "content",
         skills$: "skills",
         get skills() {
@@ -703,7 +713,9 @@ export class ProjectOptionalDto {
               title: "descriptions_items_properties_unique_id_title",
             },
             target: {
+              type: "array",
               title: "descriptions_items_properties_target_title",
+              items: {},
             },
             content: {
               title: "descriptions_items_properties_content_title",
@@ -976,9 +988,9 @@ export namespace ProjectOptionalDtoType {
     uniqueId?: string;
     /**
      *
-     * @type {TargetPositionDto}
+     * @type {TargetPositionDto[]}
      **/
-    target?: TargetPositionDto;
+    target?: TargetPositionDto[];
     /**
      *
      * @type {TString}

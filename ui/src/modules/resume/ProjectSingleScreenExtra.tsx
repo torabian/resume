@@ -72,13 +72,15 @@ export function ProjectSingleScreenExtra({ entity }: { entity?: Partial<ProjectD
         <div>
           <h6>Descriptions</h6>
           {descriptions.map((item, index) => {
-            const target = unwrap<any>(item.target);
+            const targets = unwrap<any[]>(item.target) ?? [];
             const skills = unwrap<any[]>(item.skills) ?? [];
             return (
               <div className="card mb-2" key={item.uniqueId ?? index}>
                 <div className="card-body">
                   <div className="fw-bold">
-                    {target ? getTStringValue(target.name, locale) : `Description #${index + 1}`}
+                    {targets.length > 0
+                      ? targets.map((t) => getTStringValue(t.name, locale)).join(", ")
+                      : `Description #${index + 1}`}
                   </div>
                   <div>{getTStringValue(item.content, locale)}</div>
                   {skills.length > 0 && (

@@ -261,7 +261,7 @@ dtos:
     - name: uniqueId
       type: string?
     - name: target
-      type: one?
+      type: collection?
       target: TargetPositionDto
     - name: content
       type: complex
@@ -507,7 +507,7 @@ dtos:
     type: array
     fields:
     - name: target
-      type: one?
+      type: collection?
       target: TargetPositionDto
     - name: content
       type: complex
@@ -740,7 +740,7 @@ entities:
     type: array
     fields:
     - name: target
-      type: one
+      type: collection
       target: TargetPositionEntity
     - name: content
       type: complex

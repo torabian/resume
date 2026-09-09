@@ -297,7 +297,7 @@ entities:
           So you can emphesize more on backend or front-end part of the project.
         fields:
           - name: target
-            type: one
+            type: collection
             target: TargetPositionEntity
           - name: content
             type: complex

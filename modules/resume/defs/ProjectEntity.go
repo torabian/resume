@@ -30,14 +30,14 @@ type ProjectEntity struct {
 
 // The base class definition for descriptions
 type ProjectEntityDescriptions struct {
-	Target    *TargetPositionEntity                 `gorm:"foreignKey:TargetId;references:Id" json:"target" yaml:"target"`
-	Content   complexes.TString                     `json:"content" yaml:"content"`
-	Skills    emigo.CollectionNullable[SkillEntity] `gorm:"-" json:"skills" yaml:"skills"`
-	Id        int64                                 `gorm:"primaryKey;autoIncrement" json:"-" yaml:"-"`
-	UniqueId  string                                `gorm:"type:varchar(100);unique" json:"uniqueId" yaml:"uniqueId"`
-	LinkerId  int64                                 `gorm:"index" json:"linkerId" yaml:"linkerId"`
-	TargetId  int64                                 `gorm:"index" json:"-" yaml:"-"`
-	SkillsRow []*SkillEntity                        `gorm:"many2many:project_skills;foreignKey:Id;references:Id" json:"-" yaml:"-"`
+	Target    emigo.Collection[TargetPositionEntity] `gorm:"-" json:"target" yaml:"target"`
+	Content   complexes.TString                      `json:"content" yaml:"content"`
+	Skills    emigo.CollectionNullable[SkillEntity]  `gorm:"-" json:"skills" yaml:"skills"`
+	Id        int64                                  `gorm:"primaryKey;autoIncrement" json:"-" yaml:"-"`
+	UniqueId  string                                 `gorm:"type:varchar(100);unique" json:"uniqueId" yaml:"uniqueId"`
+	LinkerId  int64                                  `gorm:"index" json:"linkerId" yaml:"linkerId"`
+	TargetRow []*TargetPositionEntity                `gorm:"many2many:project_target;foreignKey:Id;references:Id" json:"-" yaml:"-"`
+	SkillsRow []*SkillEntity                         `gorm:"many2many:project_skills;foreignKey:Id;references:Id" json:"-" yaml:"-"`
 }
 
 func (x *ProjectEntity) Json() string {
@@ -147,7 +147,7 @@ func GetProjectEntityDescriptionsCliFlags(prefix string) []emigo.CliFlag {
 	return []emigo.CliFlag{
 		{
 			Name: prefix + "target",
-			Type: "class",
+			Type: "collection",
 		},
 		{
 			Name: prefix + "content",
@@ -170,8 +170,8 @@ func GetProjectEntityDescriptionsCliFlags(prefix string) []emigo.CliFlag {
 			Type: "int64",
 		},
 		{
-			Name: prefix + "target-id",
-			Type: "int64",
+			Name: prefix + "target-row",
+			Type: "complex",
 		},
 		{
 			Name: prefix + "skills-row",
@@ -181,6 +181,9 @@ func GetProjectEntityDescriptionsCliFlags(prefix string) []emigo.CliFlag {
 }
 func CastProjectEntityDescriptionsFromCli(c emigo.CliCastable) ProjectEntityDescriptions {
 	data := ProjectEntityDescriptions{}
+	if c.IsSet("target") {
+		data.Target = emigo.CapturePossibleCollection(CastTargetPositionEntityFromCli, "target", c)
+	}
 	if c.IsSet("content") {
 		if u, ok := any(&data.Content).(encoding.TextUnmarshaler); ok {
 			u.UnmarshalText([]byte(c.String("content")))
@@ -198,8 +201,10 @@ func CastProjectEntityDescriptionsFromCli(c emigo.CliCastable) ProjectEntityDesc
 	if c.IsSet("linker-id") {
 		data.LinkerId = int64(c.Int64("linker-id"))
 	}
-	if c.IsSet("target-id") {
-		data.TargetId = int64(c.Int64("target-id"))
+	if c.IsSet("target-row") {
+		if u, ok := any(&data.TargetRow).(encoding.TextUnmarshaler); ok {
+			u.UnmarshalText([]byte(c.String("target-row")))
+		}
 	}
 	if c.IsSet("skills-row") {
 		if u, ok := any(&data.SkillsRow).(encoding.TextUnmarshaler); ok {
@@ -319,24 +324,6 @@ func ProjectEntityUpdateFn(tx *gorm.DB, uniqueId string, input ProjectOptionalDt
 					UniqueId: src.UniqueId.OrDefault(""),
 					Content:  src.Content,
 				}
-				if src.Target.IsSet() {
-					selectorId := ""
-					if src.Target.Operation == "select" {
-						if s, ok := src.Target.Selector.(string); ok {
-							selectorId = s
-						}
-					} else {
-						selectorId = src.Target.Item.UniqueId.OrDefault("")
-					}
-					if selectorId == "" {
-						return fmt.Errorf("descriptions.target: updating a one/one? relation needs either {\"__operation\":\"select\",\"__selector\":...} or the target's own uniqueId in the payload")
-					}
-					resolvedId, err := emigorm.ReconcileOne[TargetPositionEntity](tx, "select", selectorId, nil)
-					if err != nil {
-						return err
-					}
-					item.TargetId = resolvedId
-				}
 				items[i] = item
 			}
 			if err := emigorm.ReconcileHasMany(tx, "linker_id", entity.Id, input.Descriptions.Operation, items); err != nil {
@@ -345,6 +332,23 @@ func ProjectEntityUpdateFn(tx *gorm.DB, uniqueId string, input ProjectOptionalDt
 			for i := range items {
 				src := input.Descriptions.Items[i]
 				item := items[i]
+				if src.Target.IsSet() {
+					subItems := make([]*TargetPositionEntity, len(src.Target.Items))
+					for j := range src.Target.Items {
+						uid := src.Target.Items[j].UniqueId.OrDefault("")
+						if uid == "" {
+							return fmt.Errorf("descriptions.target: updating a collection/collection? relation only supports referencing existing rows by uniqueId, item %d has none", j)
+						}
+						var existing TargetPositionEntity
+						if err := tx.First(&existing, "unique_id = ?", uid).Error; err != nil {
+							return err
+						}
+						subItems[j] = &existing
+					}
+					if err := emigorm.ReconcileManyToMany(tx, item, "TargetRow", src.Target.Operation, subItems); err != nil {
+						return err
+					}
+				}
 				if src.Skills.IsSet() {
 					subItems := make([]*SkillEntity, len(src.Skills.Items))
 					for j := range src.Skills.Items {

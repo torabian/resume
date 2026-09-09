@@ -102,17 +102,18 @@ export interface PickerItem {
   /** For a plain kind "project" pick (a project with no descriptions of its
    * own yet), the project's own uniqueId - same as every other kind. For a
    * "project" pick that represents one specific description (see
-   * `projectId` below), this is that description's own *target position's*
-   * uniqueId instead - descriptions have no client-visible uniqueId of
-   * their own (Resume.emi.yml's `descriptions` array items get one on the
-   * OptionalDto used for Create/Update, but not on the plain Dto Browse/Get
-   * actually return - see ResumeActions.go's projectDtoFromEntity), and
-   * `descriptions.target` is a required (`type: one`, not `one?`) relation,
-   * so every real description has exactly one target position to key off
-   * of instead. Combined with `projectId` (not `uniqueId` alone) for
-   * identity everywhere below (itemKey/toDomId/sameItem), since the same
-   * target position could in principle be the target of a description on
-   * more than one project.
+   * `projectId` below), this is one of that description's own *target
+   * positions'* uniqueId instead - descriptions have no client-visible
+   * uniqueId of their own (Resume.emi.yml's `descriptions` array items get
+   * one on the OptionalDto used for Create/Update, but not on the plain Dto
+   * Browse/Get actually return - see ResumeActions.go's
+   * projectDtoFromEntity), and `descriptions.target` is now a `collection`
+   * relation - a description can match more than one target position, so
+   * one pickable card is generated per (description, target) pair, each
+   * keyed off a different target position's uniqueId. Combined with
+   * `projectId` (not `uniqueId` alone) for identity everywhere below
+   * (itemKey/toDomId/sameItem), since the same target position could in
+   * principle be the target of a description on more than one project.
    */
   uniqueId: string;
   label: string;
@@ -477,15 +478,22 @@ export function ResumeCreatorPicker({
         items.push({ kind: "project", uniqueId: (p as any).uniqueId, label: safeLabel((p as any).name) });
         continue;
       }
-      descriptions.forEach((d: any, index: number) => {
-        const target = unwrap<any>(d.target);
-        const targetLabel = target ? pickLocale(target.name, locale) : `Description ${index + 1}`;
-        if (!target?.uniqueId) return; // see PickerItem.uniqueId's own doc comment - nothing to key this pick off of without a target.
-        items.push({
-          kind: "project",
-          uniqueId: target.uniqueId,
-          projectId: (p as any).uniqueId,
-          label: `${safeLabel((p as any).name)} — ${targetLabel}`,
+      descriptions.forEach((d: any) => {
+        const targets = unwrap<any[]>(d.target) ?? [];
+        // `target` is now a collection - one target position can no longer
+        // key its whole description alone (see PickerItem's own doc
+        // comment), so one pickable card is generated per (description,
+        // target) pair instead, still keyed by that target's own uniqueId.
+        // A description with no target yet has nothing to key a pick off
+        // of, so it's skipped entirely, same as before.
+        targets.forEach((target) => {
+          if (!target?.uniqueId) return;
+          items.push({
+            kind: "project",
+            uniqueId: target.uniqueId,
+            projectId: (p as any).uniqueId,
+            label: `${safeLabel((p as any).name)} — ${pickLocale(target.name, locale)}`,
+          });
         });
       });
     }

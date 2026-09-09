@@ -13,10 +13,6 @@
 // from the rest of the project form's plain fields.
 import { useState } from "react";
 import { FormSelectMultiple } from "@fireback/ui-core/components/forms/form-select/FormSelect";
-import {
-  FormOne,
-  resolveOneValueId,
-} from "@fireback/ui-core/components/forms/form-one/FormOne";
 import { FormTString } from "@fireback/ui-core/components/forms/form-tstring/FormTString";
 import { useLocale } from "@fireback/ui-core/hooks/useLocale";
 import { getTStringValue, type TString } from "@fireback/ui-core/types/TString";
@@ -26,25 +22,21 @@ import type { TargetPositionDto } from "@/modules/resume/sdk/TargetPositionDto";
 import type { SkillDto } from "@/modules/resume/sdk/SkillDto";
 
 // Wire shape ProjectDto.Descriptions/ProjectOptionalDto.Descriptions items
-// actually round-trip as: a fetched item's `target` is either null or the
-// full nested TargetPositionDto (FormOne - @fireback/ui-core - handles
-// resolving/re-wrapping that into a proper `{__operation, __selector}` pick
-// on change, so this file doesn't need to know its wire shape at all - see
-// FormOne.tsx's own doc comment), and its `skills` is a bare array of full
-// SkillDto objects (CollectionNullable's own "replace"-is-implicit read
-// shape - see emigo/CollectionNullable.go's MarshalJSON) - a plain
-// `{uniqueId}` stub per item is all ReconcileManyToMany needs back (see
-// this file's own onChange handler for `skills`), no selector wrapping at
-// all, unlike `target`'s one/one? relation.
+// actually round-trip as: a fetched item's `target` and `skills` are both a
+// bare array of full DTOs (CollectionNullable's own "replace"-is-implicit
+// read shape - see emigo/CollectionNullable.go's MarshalJSON) - a plain
+// `{uniqueId}` stub per item is all ReconcileManyToMany needs back (see this
+// file's own onChange handlers for `target`/`skills`), no selector wrapping
+// at all. A description can now match multiple target positions.
 export interface ProjectDescriptionItem {
   uniqueId?: string | null;
-  target?: any;
+  target?: Array<{ uniqueId?: string | null } & Record<string, any>>;
   content?: TString | null;
   skills?: Array<{ uniqueId?: string | null } & Record<string, any>>;
 }
 
 function emptyDescription(): ProjectDescriptionItem {
-  return { content: {}, skills: [] };
+  return { content: {}, target: [], skills: [] };
 }
 
 function tabLabel(
@@ -53,17 +45,12 @@ function tabLabel(
   targets: TargetPositionDto[],
   locale: string,
 ): string {
-  const targetId = resolveOneValueId(
-    item.target,
-    (t: TargetPositionDto) => t.uniqueId as string,
-  );
-  const target = targets.find((t) => t.uniqueId === targetId);
-  if (target) {
-    return (
-      getTStringValue(target.name as any, locale) ||
-      target.uniqueId ||
-      `#${index + 1}`
-    );
+  const targetIds = new Set((item.target ?? []).map((t) => t.uniqueId));
+  const matched = targets.filter((t) => targetIds.has(t.uniqueId));
+  if (matched.length > 0) {
+    return matched
+      .map((t) => getTStringValue(t.name as any, locale) || t.uniqueId)
+      .join(", ");
   }
   return `Description #${index + 1}`;
 }
@@ -148,16 +135,24 @@ export function ProjectDescriptionsTabs({
 
       {activeItem && (
         <div className="tab-content border border-top-0 p-3">
-          <FormOne<TargetPositionDto, string>
-            label="Target position"
-            value={activeItem.target}
+          <FormSelectMultiple<TargetPositionDto, string>
+            label="Target positions"
+            value={targets.filter((t) =>
+              (activeItem.target ?? []).some(
+                (selected) => selected.uniqueId === t.uniqueId,
+              ),
+            )}
             querySource={targetsQuerySource}
             keyExtractor={(t) => t.uniqueId as string}
             fnLabelFormat={(t) =>
               getTStringValue(t.name as any, locale) || (t.uniqueId as string)
             }
             errorMessage={activeErrors?.target}
-            onChange={(value) => updateItem(activeIndex, { target: value })}
+            onChange={(nextTargets: TargetPositionDto[]) =>
+              updateItem(activeIndex, {
+                target: nextTargets.map((t) => ({ uniqueId: t.uniqueId })),
+              })
+            }
           />
           <FormTString
             label="Content"
